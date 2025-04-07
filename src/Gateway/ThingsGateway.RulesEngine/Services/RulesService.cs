@@ -11,6 +11,7 @@
 using SqlSugar;
 
 using System.Data;
+using System.Threading.Tasks;
 
 using ThingsGateway.Admin.Application;
 using ThingsGateway.Extension.Generic;
@@ -42,7 +43,7 @@ internal sealed class RulesService : BaseService<Rules>, IRulesService
 
         using var db = GetDB();
 
-        var data = GetAll()
+        var data = (await GetAllAsync().ConfigureAwait(false))
               .WhereIf(dataScope != null && dataScope?.Count > 0, u => dataScope.Contains(u.CreateOrgId))//在指定机构列表查询
             .WhereIf(dataScope?.Count == 0, u => u.CreateUserId == UserManager.UserId)
             .Select(a => a.Id).ToList();
@@ -80,23 +81,17 @@ internal sealed class RulesService : BaseService<Rules>, IRulesService
     /// 从缓存/数据库获取全部信息
     /// </summary>
     /// <returns>列表</returns>
-    public List<Rules> GetAll()
+    public async Task<List<Rules>> GetAllAsync()
     {
         var key = Cache_Rules;
         var channels = App.CacheService.Get<List<Rules>>(key);
         if (channels == null)
         {
             using var db = GetDB();
-            channels = db.Queryable<Rules>().ToList();
+            channels = await db.Queryable<Rules>().ToListAsync().ConfigureAwait(false);
             App.CacheService.Set(key, channels);
         }
         return channels;
-    }
-
-    public Rules? GetRulesById(long id)
-    {
-        var data = GetAll();
-        return data?.FirstOrDefault(x => x.Id == id);
     }
 
     /// <summary>
@@ -141,11 +136,6 @@ internal sealed class RulesService : BaseService<Rules>, IRulesService
     {
 
     }
-
-
-
-
-
 
 }
 

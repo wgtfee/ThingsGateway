@@ -34,14 +34,7 @@ public interface IRulesService
     /// 从缓存/数据库获取全部信息
     /// </summary>
     /// <returns>规则列表</returns>
-    List<Rules> GetAll();
-
-    /// <summary>
-    /// 通过ID获取规则
-    /// </summary>
-    /// <param name="id">规则ID</param>
-    /// <returns>规则对象</returns>
-    Rules? GetRulesById(long id);
+    Task<List<Rules>> GetAllAsync();
 
     /// <summary>
     /// 报表查询

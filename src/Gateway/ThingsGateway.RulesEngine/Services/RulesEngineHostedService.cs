@@ -58,7 +58,7 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
             if (rules.Status)
             {
                 var data = Init(rules);
-                await Start(data.rulesLog, data.blazorDiagram, default).ConfigureAwait(false);
+                await Start(data.rulesLog, data.blazorDiagram, TokenSource.Token).ConfigureAwait(false);
                 var service = App.GetService<IDispatchService<Rules>>();
                 service.Dispatch(new());
             }
@@ -108,23 +108,15 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
 
         return result;
     }
-    private static async Task Start(RulesLog rulesLog, BlazorDiagram item, CancellationToken cancellationToken)
+    private static Task Start(RulesLog rulesLog, BlazorDiagram item, CancellationToken cancellationToken)
     {
+        rulesLog.Log.Trace("Start");
         var startNodes = item.Nodes.Where(a => a is StartNode);
-        startNodes.ForEach(a =>
-        {
-            if (a is INode node)
-            {
-                node.Logger = rulesLog.Log;
-                node.RulesEngineName = rulesLog.Rules.Name;
-            }
-        }
-            );
         foreach (var link in startNodes.SelectMany(a => a.PortLinks))
         {
-            rulesLog.Log.Trace("Start");
-            await Analysis((link.Target.Model as PortModel)?.Parent, new NodeInput(), rulesLog, cancellationToken).ConfigureAwait(false);
+            _ = Analysis((link.Target.Model as PortModel)?.Parent, new NodeInput(), rulesLog, cancellationToken);
         }
+        return Task.CompletedTask;
     }
 
     private static async Task Analysis(NodeModel targetNode, NodeInput input, RulesLog rulesLog, CancellationToken cancellationToken)
@@ -192,11 +184,11 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
 
     #region worker服务
 
-    private async Task BefortStart(CancellationToken cancellationToken)
+    private async Task StartAll(CancellationToken cancellationToken)
     {
-        AfterStop();
+        Clear();
 
-        Rules = App.GetService<IRulesService>().GetAll();
+        Rules =await App.GetService<IRulesService>().GetAllAsync().ConfigureAwait(false);
         BlazorDiagrams = new();
         foreach (var rules in Rules.Where(a => a.Status))
         {
@@ -223,29 +215,10 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
 
     }
 
-    private void AfterStop()
-    {
-        foreach (var item in BlazorDiagrams.Values)
-        {
-            foreach (var nodeModel in item.Nodes)
-            {
-                nodeModel.TryDispose();
-            }
-        }
-        BlazorDiagrams.Clear();
-    }
 
     private CancellationTokenSource? TokenSource { get; set; }
 
-    private void Cancel()
-    {
-        if (TokenSource != null)
-        {
-            TokenSource.Cancel();
-            TokenSource.Dispose();
-            TokenSource = null;
-        }
-    }
+
 
     internal async Task StartAsync()
     {
@@ -253,7 +226,7 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
         {
             await RestartLock.WaitAsync().ConfigureAwait(false); // 等待获取锁，以确保只有一个线程可以执行以下代码
             TokenSource ??= new CancellationTokenSource();
-            await BefortStart(TokenSource.Token).ConfigureAwait(false);
+            await StartAll(TokenSource.Token).ConfigureAwait(false);
             _logger.LogInformation(Localizer["RulesEngineTaskStart"]);
         }
         catch (Exception ex)
@@ -272,7 +245,7 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
         {
             await RestartLock.WaitAsync().ConfigureAwait(false); // 等待获取锁，以确保只有一个线程可以执行以下代码
             Cancel();
-            AfterStop();
+            Clear();
         }
         catch (Exception ex)
         {
@@ -282,6 +255,28 @@ internal sealed class RulesEngineHostedService : BackgroundService, IRulesEngine
         {
             RestartLock.Release(); // 释放锁
         }
+    }
+
+    private void Cancel()
+    {
+        if (TokenSource != null)
+        {
+            TokenSource.Cancel();
+            TokenSource.Dispose();
+            TokenSource = null;
+        }
+    }
+
+    private void Clear()
+    {
+        foreach (var item in BlazorDiagrams.Values)
+        {
+            foreach (var nodeModel in item.Nodes)
+            {
+                nodeModel.TryDispose();
+            }
+        }
+        BlazorDiagrams.Clear();
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
