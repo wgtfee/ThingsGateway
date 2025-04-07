@@ -136,28 +136,11 @@ public abstract class BusinessBase : DriverBase
             // 获取设备连接状态并更新设备活动时间
             if (IsConnected())
             {
-                // 如果不是采集设备，则直接更新设备状态为当前时间
-                if (IsCollectDevice == false)
-                {
-                    CurrentDevice.SetDeviceStatus(TimerX.Now, false);
-                }
-                else
-                {
-                    // 否则，更新设备活动时间
-                    CurrentDevice.SetDeviceStatus(TimerX.Now);
-                }
+                CurrentDevice.SetDeviceStatus(TimerX.Now, false);
             }
             else
             {
-                // 如果设备未连接，则更新设备状态为断开
-                if (!IsConnected())
-                {
-                    // 如果不是采集设备，则直接更新设备状态为当前时间
-                    if (IsCollectDevice == false)
-                    {
-                        CurrentDevice.SetDeviceStatus(TimerX.Now, true);
-                    }
-                }
+                CurrentDevice.SetDeviceStatus(TimerX.Now, true);
             }
 
             // 再次检查取消操作是否被请求

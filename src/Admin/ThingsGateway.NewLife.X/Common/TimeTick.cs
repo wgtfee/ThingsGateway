@@ -41,34 +41,52 @@ public class TimeTick
     /// <returns>是否触发时间刻度</returns>
     public bool IsTickHappen(DateTime currentTime)
     {
+        var nextTime = GetNextTime(currentTime);
+        bool result = SetLastTime(currentTime, nextTime);
+        return result;
+    }
+
+    private bool SetLastTime(DateTime currentTime, DateTime nextTime)
+    {
+        var diffMilliseconds = (currentTime - nextTime).TotalMilliseconds;
+
+        var result = diffMilliseconds >= 0;
+        if (result)
+        {
+            if (diffMilliseconds > _intervalMilliseconds)
+                LastTime = currentTime;
+            else
+                LastTime = nextTime;
+        }
+
+        return result;
+    }
+
+    public DateTime GetNextTime(DateTime currentTime, bool setLastTime = true)
+    {
         // 在没有 Cron 表达式的情况下，使用固定间隔
         if (cron == null)
         {
             var nextTime = LastTime.AddMilliseconds(_intervalMilliseconds);
-            var diffMilliseconds = (currentTime - nextTime).TotalMilliseconds;
+            if (setLastTime)
+                SetLastTime(currentTime, nextTime);
 
-            var result = diffMilliseconds >= 0;
-            if (result)
-            {
-                if (diffMilliseconds > _intervalMilliseconds)
-                    LastTime = currentTime;
-                else
-                    LastTime = nextTime;
-            }
-            return result;
+            return nextTime;
         }
         // 使用 Cron 表达式
         else
         {
             var nextTime = cron.GetNext(LastTime);
-            if (currentTime >= nextTime)
-            {
-                LastTime = nextTime;
-                return true;
-            }
-            return false;
+            if (setLastTime)
+                SetLastTime(currentTime, nextTime);
+            return nextTime;
         }
+
+
+
     }
+
+    public DateTime GetNextTime(bool setLastTime = true) => GetNextTime(DateTime.UtcNow, setLastTime);
 
     /// <summary>
     /// 是否到达设置的时间间隔

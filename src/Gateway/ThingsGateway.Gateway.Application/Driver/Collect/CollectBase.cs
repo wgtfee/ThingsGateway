@@ -168,7 +168,76 @@ public abstract class CollectBase : DriverBase
     {
         return string.Empty;
     }
+    /// <summary>
+    /// 循环任务
+    /// </summary>
+    /// <param name="cancellationToken">取消操作的令牌。</param>
+    /// <returns>表示异步操作结果的枚举。</returns>
+    internal override async ValueTask<ThreadRunReturnTypeEnum> ExecuteAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // 如果取消操作被请求，则返回中断状态
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ThreadRunReturnTypeEnum.Break;
+            }
 
+            // 如果标志为停止，则暂停执行
+            if (Pause)
+            {
+                // 暂停
+                return ThreadRunReturnTypeEnum.Continue;
+            }
+
+            // 再次检查取消操作是否被请求
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ThreadRunReturnTypeEnum.Break;
+            }
+
+            // 获取设备连接状态并更新设备活动时间
+            if (IsConnected())
+            {
+                CurrentDevice.SetDeviceStatus(TimerX.Now);
+            }
+
+            // 再次检查取消操作是否被请求
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ThreadRunReturnTypeEnum.Break;
+            }
+
+            // 执行任务操作
+            await ProtectedExecuteAsync(cancellationToken).ConfigureAwait(false);
+
+            // 再次检查取消操作是否被请求
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return ThreadRunReturnTypeEnum.Break;
+            }
+
+            // 正常返回None状态
+            return ThreadRunReturnTypeEnum.None;
+        }
+        catch (OperationCanceledException)
+        {
+            return ThreadRunReturnTypeEnum.Break;
+        }
+        catch (ObjectDisposedException)
+        {
+            return ThreadRunReturnTypeEnum.Break;
+        }
+        catch (Exception ex)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                return ThreadRunReturnTypeEnum.Break;
+            // 记录异常信息，并更新设备状态为异常
+            LogMessage?.LogError(ex, "Execute");
+            CurrentDevice.SetDeviceStatus(TimerX.Now, true, ex.Message);
+            return ThreadRunReturnTypeEnum.None;
+        }
+    }
     /// <summary>
     /// 执行读取等方法，如果插件不支持读取，而是自更新值的话，需重写此方法
     /// </summary>

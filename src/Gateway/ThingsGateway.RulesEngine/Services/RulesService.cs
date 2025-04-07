@@ -11,7 +11,6 @@
 using SqlSugar;
 
 using System.Data;
-using System.Threading.Tasks;
 
 using ThingsGateway.Admin.Application;
 using ThingsGateway.Extension.Generic;
