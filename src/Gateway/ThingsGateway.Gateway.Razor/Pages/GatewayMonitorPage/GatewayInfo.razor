@@ -5,11 +5,11 @@
 @namespace ThingsGateway.Gateway.Razor
 
 
-@if (ShowType == ShowTypeEnum.Variable)
+@if (ShowType == ShowTypeEnum.VariableTable)
 {
     <VariableRuntimeInfo Items="VariableRuntimes" SelectModel="SelectModel" AutoRestartThread="AutoRestartThread" />
 }
-else
+else if (ShowType == ShowTypeEnum.LogInfo)
 {
     if (GlobalData.ReadOnlyIdDevices.TryGetValue(ShowDeviceRuntime, out var device))
     {
@@ -19,4 +19,13 @@ else
     {
         <ChannelRuntimeInfo ChannelRuntime="channel" />
     }
+}
+else if (ShowType == ShowTypeEnum.ChannelTable)
+{
+    <ChannelTable SelectModel="SelectModel" Items="ChannelRuntimes" AutoRestartThread=AutoRestartThread />
+}
+
+else if (ShowType == ShowTypeEnum.DeviceTable)
+{
+    <DeviceTable SelectModel="SelectModel" Items="DeviceRuntimes" AutoRestartThread=AutoRestartThread />
 }

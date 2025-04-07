@@ -9,8 +9,8 @@
 		<PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
 		<PackageReference Include="SqlSugar.TDengineCore" Version="4.18.6" />
 		<PackageReference Include="Rougamo.Fody" Version="5.0.0" />
-		<PackageReference Include="TouchSocket.Dmtp" Version="3.0.23" />
-		<PackageReference Include="TouchSocket.WebApi.Swagger" Version="3.0.23" />
+		<PackageReference Include="TouchSocket.Dmtp" Version="3.0.24" />
+		<PackageReference Include="TouchSocket.WebApi.Swagger" Version="3.0.24" />
 		<PackageReference Include="ThingsGateway.Authentication" Version="$(AuthenticationVersion)" />
 
 	</ItemGroup>

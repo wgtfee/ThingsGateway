@@ -60,7 +60,7 @@
 
         <TableColumn @bind-Field="@context.Index" Filterable=true Sortable=true Visible="false" />
         <TableColumn @bind-Field="@context.Id" Filterable=true Sortable=true Visible="false" DefaultSort=true DefaultSortOrder="SortOrder.Asc" />
-        
+
 
     </TableColumns>
     <RowButtonTemplate>
@@ -94,12 +94,12 @@
         </Button>
         <Button class="dropdown-item" OnClick="() => ExcelVariableAsync(ExportContext)" IsDisabled=@(!AuthorizeButton("导入"))>
             <i class="fas fa-file-import"></i>
-            <span>@Localizer["ExcelVariable"]</span>
+            <span>@GatewayLocalizer["ExcelVariable"]</span>
         </Button>
     </ExportButtonDropdownTemplate>
     <TableToolbarTemplate>
 
-      <TableToolbarButton TItem="VariableRuntime" IsDisabled=@(!AuthorizeButton(AdminOperConst.Add))
+        <TableToolbarButton TItem="VariableRuntime" IsDisabled=@(!AuthorizeButton(AdminOperConst.Add))
                             Color=Color.Success Text="@RazorLocalizer["Copy"]"
                             OnClickCallback=@(Copy) />
 
@@ -108,19 +108,22 @@
                             OnClickCallback=@(BatchEdit) />
 
         <TableToolbarPopConfirmButton TItem="VariableRuntime"
-                                      Color=Color.Warning Text="@RazorLocalizer["Clear"]" IsDisabled=@(!AuthorizeButton("清空"))
-                                      IsAsync OnConfirm=@(ClearVariableAsync) />
+                                      Color=Color.Warning Text="@RazorLocalizer["Clear"]" IsDisabled=@(!AuthorizeButton(AdminOperConst.Delete))
+                                      IsAsync OnConfirm=@(ClearAsync) />
 
-        <PopConfirmButton Color=Color.Warning Text="@Localizer["Test"]" IsDisabled=@(!AuthorizeButton(AdminOperConst.Add))
-                          IsAsync OnConfirm=@(InsertTestDataAsync)>
+        @if (WebsiteOption.Value.Demo)
+        {
+            <PopConfirmButton Color=Color.Warning Text="@Localizer["Test"]" IsDisabled=@(!AuthorizeButton(AdminOperConst.Add))
+                              IsAsync OnConfirm=@(InsertTestDataAsync)>
 
-            <BodyTemplate>
-                <BootstrapInput @bind-Value=TestVariableCount ShowLabel="true" ShowLabelTooltip="true" />
-                <BootstrapInput @bind-Value=TestDeviceCount ShowLabel="true" ShowLabelTooltip="true" />
-                <BootstrapInput @bind-Value=SlaveUrl ShowLabel="true" ShowLabelTooltip="true" />
-            </BodyTemplate>
+                <BodyTemplate>
+                    <BootstrapInput @bind-Value=TestVariableCount ShowLabel="true" ShowLabelTooltip="true" />
+                    <BootstrapInput @bind-Value=TestDeviceCount ShowLabel="true" ShowLabelTooltip="true" />
+                    <BootstrapInput @bind-Value=SlaveUrl ShowLabel="true" ShowLabelTooltip="true" />
+                </BodyTemplate>
 
-        </PopConfirmButton>
+            </PopConfirmButton>
+        }
 
     </TableToolbarTemplate>
 </AdminTable>

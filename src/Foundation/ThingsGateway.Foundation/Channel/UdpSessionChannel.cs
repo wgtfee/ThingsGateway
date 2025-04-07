@@ -166,6 +166,7 @@ public class UdpSessionChannel : UdpSession, IClientChannel
         return $"{ChannelOptions.BindUrl} {ChannelOptions.RemoteUrl}";
     }
 
+
     /// <inheritdoc/>
     protected override async Task OnUdpReceived(UdpReceivedDataEventArgs e)
     {

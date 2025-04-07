@@ -31,6 +31,7 @@ public class ChannelRuntime : Channel, IChannelOptions, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public PluginInfo? PluginInfo { get; set; }
 
     /// <summary>
@@ -41,11 +42,13 @@ public class ChannelRuntime : Channel, IChannelOptions, IDisposable
     /// <summary>
     /// 是否采集
     /// </summary>
+    [AutoGenerateColumn(Ignore = true)]
     public bool? IsCollect => PluginInfo == null ? null : PluginInfo?.PluginType == PluginTypeEnum.Collect;
 
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public WaitLock WaitLock { get; private set; } = new WaitLock();
 
     /// <inheritdoc/>
@@ -77,6 +80,7 @@ public class ChannelRuntime : Channel, IChannelOptions, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public TouchSocketConfig Config { get; set; } = new();
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -104,8 +108,10 @@ public class ChannelRuntime : Channel, IChannelOptions, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public IDeviceThreadManage? DeviceThreadManage { get; internal set; }
 
+    [AutoGenerateColumn(Ignore = true)]
     public string LogPath => Name.GetChannelLogPath();
 
 

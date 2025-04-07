@@ -83,16 +83,8 @@ public class SerialPortChannel : SerialPortClient, IClientChannel
                 //await _connectLock.WaitAsync().ConfigureAwait(false);
                 if (Online)
                 {
-                    await this.OnChannelEvent(Stoping).ConfigureAwait(false);
-
                     await base.CloseAsync(msg).ConfigureAwait(false);
-                    if (!Online)
-                    {
-                        Logger?.Debug($"{ToString()}  Closed{msg}");
-                        await this.OnChannelEvent(Stoped).ConfigureAwait(false);
 
-
-                    }
                 }
             }
             finally
@@ -114,11 +106,7 @@ public class SerialPortChannel : SerialPortClient, IClientChannel
                 {
                     //await SetupAsync(Config.Clone()).ConfigureAwait(false);
                     await base.ConnectAsync(millisecondsTimeout, token).ConfigureAwait(false);
-                    if (Online)
-                    {
-                        Logger?.Debug($"{ToString()} Connected");
-                        await this.OnChannelEvent(Started).ConfigureAwait(false);
-                    }
+
                 }
             }
             finally
@@ -153,22 +141,35 @@ public class SerialPortChannel : SerialPortClient, IClientChannel
         return base.ToString();
     }
 
+
+    protected override async Task OnSerialClosed(ClosedEventArgs e)
+    {
+        await this.OnChannelEvent(Stoped).ConfigureAwait(false);
+        Logger?.Info($"{ToString()} Closed{(e.Message.IsNullOrEmpty() ? string.Empty : $" -{e.Message}")}");
+
+        await base.OnSerialClosed(e).ConfigureAwait(false);
+    }
     /// <inheritdoc/>
     protected override async Task OnSerialClosing(ClosingEventArgs e)
     {
         await this.OnChannelEvent(Stoping).ConfigureAwait(false);
-        Logger?.Debug($"{ToString()} Closing{(e.Message.IsNullOrEmpty() ? string.Empty : $" -{e.Message}")}");
+        Logger?.Info($"{ToString()} Closing{(e.Message.IsNullOrEmpty() ? string.Empty : $" -{e.Message}")}");
         await base.OnSerialClosing(e).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     protected override async Task OnSerialConnecting(ConnectingEventArgs e)
     {
-        Logger?.Debug($"{ToString()}  Connecting{(e.Message.IsNullOrEmpty() ? string.Empty : $" -{e.Message}")}");
+        Logger?.Trace($"{ToString()}  Connecting{(e.Message.IsNullOrEmpty() ? string.Empty : $" -{e.Message}")}");
         await this.OnChannelEvent(Starting).ConfigureAwait(false);
         await base.OnSerialConnecting(e).ConfigureAwait(false);
     }
-
+    protected override async Task OnSerialConnected(ConnectedEventArgs e)
+    {
+        Logger?.Debug($"{ToString()} Connected");
+        await this.OnChannelEvent(Started).ConfigureAwait(false);
+        await base.OnSerialConnected(e).ConfigureAwait(false);
+    }
     /// <inheritdoc/>
     protected override async Task OnSerialReceived(ReceivedDataEventArgs e)
     {

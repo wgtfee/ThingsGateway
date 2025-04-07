@@ -26,8 +26,6 @@
   "ThingsGateway.Gateway.Razor.VariableRuntimeInfo": {
     "WriteVariable": "写入",
     "WriteValue": "写入值",
-    "ImportExcel": "导入变量",
-    "ExcelVariable": "在线excel编辑变量",
     "TestVariableCount": "变量数量",
     "TestDeviceCount": "采集设备数量",
     "SlaveUrl": "服务端Url",
@@ -73,8 +71,10 @@
   },
 
   "ThingsGateway.Gateway.Razor.ShowTypeEnum": {
-    "Variable": "变量页面",
-    "LogInfo": "日志页面"
+    "VariableTable": "变量页面",
+    "LogInfo": "日志页面",
+    "ChannelTable": "通道页面",
+    "DeviceTable": "设备页面"
   },
 
   "ThingsGateway.Gateway.Razor.SavePlugin": {
@@ -98,6 +98,9 @@
   },
 
   "ThingsGateway.Gateway.Razor._Imports": {
+    "ExcelVariable": "在线excel编辑变量",
+    "ImportExcel": "导入变量",
+
     "CopyVariableNamePrefix": "变量名称前缀",
     "CopyVariableNameSuffixNumber": "变量名称后缀开始序号",
     "CopyChannelNamePrefix": "通道名称前缀",

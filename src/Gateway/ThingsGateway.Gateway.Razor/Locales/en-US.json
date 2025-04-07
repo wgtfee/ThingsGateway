@@ -67,8 +67,7 @@
   "ThingsGateway.Gateway.Razor.VariableRuntimeInfo": {
     "WriteVariable": "WriteVariable",
     "WriteValue": "WriteValue",
-    "ExcelVariable": "ExcelVariable",
-    "ImportExcel": "ImportExcel",
+
     "TestVariableCount": "TestVariableCount",
     "TestDeviceCount": "TestDeviceCount",
     "SlaveUrl": "SlaveUrlUrl",
@@ -94,8 +93,10 @@
   },
 
   "ThingsGateway.Gateway.Razor.ShowTypeEnum": {
-    "Variable": "Variable",
-    "LogInfo": "Info"
+    "VariableTable": "VariableTable",
+    "LogInfo": "LogInfo",
+    "ChannelTable": "ChannelTable",
+    "DeviceTable": "DeviceTable"
   },
 
   "ThingsGateway.Gateway.Razor.VariableEditComponent": {
@@ -105,6 +106,10 @@
 
 
   "ThingsGateway.Gateway.Razor._Imports": {
+
+    "ExcelVariable": "ExcelVariable",
+    "ImportExcel": "ImportExcel",
+
     "CopyVariableNamePrefix": "CopyVariableNamePrefix",
     "CopyVariableNameSuffixNumber": "CopyVariableNameSuffixNumber",
     "CopyChannelNamePrefix": "CopyChannelNamePrefix",

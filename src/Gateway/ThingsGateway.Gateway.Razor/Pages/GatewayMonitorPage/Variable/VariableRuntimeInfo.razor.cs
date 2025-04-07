@@ -11,6 +11,7 @@
 using Mapster;
 
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Options;
 
 using ThingsGateway.Admin.Application;
 using ThingsGateway.Extension.Generic;
@@ -22,6 +23,8 @@ namespace ThingsGateway.Gateway.Razor;
 
 public partial class VariableRuntimeInfo : IDisposable
 {
+    [Inject]
+    private IOptions<WebsiteOptions>? WebsiteOption { get; set; }
     public bool Disposed { get; set; }
 
     [Parameter]
@@ -169,19 +172,19 @@ public partial class VariableRuntimeInfo : IDisposable
             ShowFooter = false,
             ShowCloseButton = false,
         };
-        var oldmodel = variables.FirstOrDefault();//默认值显示第一个
-        if (oldmodel == null)
+        var oldModel = variables.FirstOrDefault();//默认值显示第一个
+        if (oldModel == null)
         {
             await ToastService.Warning(null, RazorLocalizer["PleaseSelect"]);
             return;
         }
 
-        var model = oldmodel.Adapt<Variable>();//默认值显示第一个
+        var model = oldModel.Adapt<Variable>();//默认值显示第一个
         op.Component = BootstrapDynamicComponent.CreateComponent<VariableEditComponent>(new Dictionary<string, object?>
         {
              {nameof(VariableEditComponent.OnValidSubmit), async () =>
             {
-                await Task.Run(()=> GlobalData. VariableRuntimeService.BatchEditAsync(variables,oldmodel,model, AutoRestartThread,default));
+                await Task.Run(()=> GlobalData. VariableRuntimeService.BatchEditAsync(variables,oldModel,model, AutoRestartThread,default));
 
                 await InvokeAsync(table.QueryAsync);
             }},
@@ -194,13 +197,13 @@ public partial class VariableRuntimeInfo : IDisposable
     }
 
 
-    private async Task<bool> Delete(IEnumerable<Variable> devices)
+    private async Task<bool> Delete(IEnumerable<Variable> variables)
     {
         try
         {
             return await Task.Run(async () =>
             {
-                return await GlobalData.VariableRuntimeService.DeleteVariableAsync(devices.Select(a => a.Id), AutoRestartThread, default);
+                return await GlobalData.VariableRuntimeService.DeleteVariableAsync(variables.Select(a => a.Id), AutoRestartThread, default);
             });
 
         }
@@ -294,7 +297,7 @@ public partial class VariableRuntimeInfo : IDisposable
             IsScrolling = false,
             ShowMaximizeButton = true,
             Size = Size.ExtraExtraLarge,
-            Title = Localizer["ExcelVariable"],
+            Title = GatewayLocalizer["ExcelVariable"],
             ShowFooter = false,
             ShowCloseButton = false,
         };
@@ -348,7 +351,7 @@ finally
             IsScrolling = true,
             ShowMaximizeButton = true,
             Size = Size.ExtraLarge,
-            Title = Localizer["ImportExcel"],
+            Title = GatewayLocalizer["ImportVariable"],
             ShowFooter = false,
             ShowCloseButton = false,
             OnCloseAsync = async () =>
@@ -373,7 +376,7 @@ finally
 
     #region 清空
 
-    private async Task ClearVariableAsync()
+    private async Task ClearAsync()
     {
         try
         {
@@ -398,8 +401,7 @@ finally
 
     }
     #endregion
-    [Inject]
-    MaskService MaskService { get; set; }
+
     private async Task InsertTestDataAsync()
     {
         try
@@ -434,6 +436,8 @@ finally
     public bool AutoRestartThread { get; set; }
     [Parameter]
     public ChannelDeviceTreeItem SelectModel { get; set; }
-
+    [Inject]
+    [NotNull]
+    public IStringLocalizer<ThingsGateway.Gateway.Razor._Imports>? GatewayLocalizer { get; set; }
     #endregion
 }

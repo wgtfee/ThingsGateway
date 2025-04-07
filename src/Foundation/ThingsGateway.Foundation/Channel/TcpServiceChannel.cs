@@ -129,28 +129,28 @@ public abstract class TcpServiceChannelBase<TClient> : TcpService<TClient>, ITcp
     /// <inheritdoc/>
     protected override Task OnTcpClosed(TClient socketClient, ClosedEventArgs e)
     {
-        Logger?.Debug($"{socketClient} Closed{(e.Message.IsNullOrEmpty() ? string.Empty : $"-{e.Message}")}");
+        Logger?.Info($"{socketClient} Closed{(e.Message.IsNullOrEmpty() ? string.Empty : $"-{e.Message}")}");
         return base.OnTcpClosed(socketClient, e);
     }
 
     /// <inheritdoc/>
     protected override Task OnTcpClosing(TClient socketClient, ClosingEventArgs e)
     {
-        Logger?.Debug($"{socketClient} Closing{(e.Message.IsNullOrEmpty() ? string.Empty : $"-{e.Message}")}");
+        Logger?.Info($"{socketClient} Closing{(e.Message.IsNullOrEmpty() ? string.Empty : $"-{e.Message}")}");
         return base.OnTcpClosing(socketClient, e);
     }
 
     /// <inheritdoc/>
     protected override Task OnTcpConnected(TClient socketClient, ConnectedEventArgs e)
     {
-        Logger?.Debug($"{socketClient}  Connected");
+        Logger?.Info($"{socketClient}  Connected");
         return base.OnTcpConnected(socketClient, e);
     }
 
     /// <inheritdoc/>
     protected override Task OnTcpConnecting(TClient socketClient, ConnectingEventArgs e)
     {
-        Logger?.Debug($"{socketClient}  Connecting");
+        Logger?.Trace($"{socketClient}  Connecting");
         return base.OnTcpConnecting(socketClient, e);
     }
 }

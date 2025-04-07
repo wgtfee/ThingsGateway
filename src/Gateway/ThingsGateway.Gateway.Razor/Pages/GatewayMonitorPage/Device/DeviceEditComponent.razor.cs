@@ -132,7 +132,7 @@ public partial class DeviceEditComponent
         try
         {
             var pluginName = GlobalData.ReadOnlyChannels.TryGetValue(selectedItem.Value.ToLong(), out var channel) ? channel.PluginName : string.Empty;
-
+            if (pluginName.IsNullOrEmpty()) return;
             var data = GlobalData.PluginService.GetDriverPropertyTypes(pluginName);
             PluginPropertyModel = new ModelValueValidateForm() { Value = data.Model };
             PluginPropertyEditorItems = data.EditorItems;

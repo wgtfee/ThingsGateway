@@ -1,0 +1,107 @@
+﻿@namespace ThingsGateway.Gateway.Razor
+@using ThingsGateway.Admin.Application
+@using ThingsGateway.Admin.Razor
+@using ThingsGateway.Debug
+@using ThingsGateway.Gateway.Application
+@inherits ComponentDefault
+
+<AdminTable @ref=table
+            TItem="ChannelRuntime"
+            EditDialogSize="Size.ExtraLarge"
+            AutoGenerateColumns="true"
+            ShowAdvancedSearch=false
+            ScrollingDialogContent=false
+            AllowResizing="true"
+            OnAdd="OnAdd"
+            IsFixedHeader=true
+            IsMultipleSelect=true
+            SearchMode=SearchMode.Top
+            ShowExtendButtons=true
+            ShowToolbar="true"
+            ShowExportButton
+            ShowDefaultButtons=true
+            ShowSearch=false
+            ShowExtendEditButton="true"
+            ShowExtendDeleteButton="true"
+            ExtendButtonColumnWidth=220
+            OnSaveAsync="Save"
+            OnDeleteAsync="Delete"
+            OnQueryAsync="OnQueryAsync"
+            IsPagination=true>
+    <TableColumns>
+        <TableColumn @bind-Field="@context.Name" ShowTips=true Filterable=true Sortable=true Visible=true>
+
+            <Template Context="value">
+                @value.Row?.ToString()
+            </Template>
+
+        </TableColumn>
+        <TableColumn @bind-Field="@context.PluginName" ShowTips=true Filterable=true Sortable=true Visible=true />
+        <TableColumn @bind-Field="@context.Enable" Filterable=true Sortable=true Visible="true" />
+        <TableColumn @bind-Field="@context.LogEnable" Filterable=true Sortable=true Visible="false" />
+        <TableColumn @bind-Field="@context.LogLevel" Filterable=true Sortable=true Visible="false" />
+        <TableColumn @bind-Field="@context.ChannelType" Filterable=true Sortable=true Visible="false" />
+
+        <TableColumn Field="@context.CacheTimeout" FieldExpression=@(()=>context.CacheTimeout) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.CheckClearTime" FieldExpression=@(()=>context.CheckClearTime) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.ConnectTimeout" FieldExpression=@(()=>context.ConnectTimeout) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.Heartbeat" FieldExpression=@(()=>context.Heartbeat) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.HeartbeatTime" FieldExpression=@(()=>context.HeartbeatTime) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.DtuSeviceType" FieldExpression=@(()=>context.DtuSeviceType) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.DtuId" FieldExpression=@(()=>context.DtuId) ShowTips=true Filterable=true Sortable=true Visible=false />
+
+        <TableColumn Field="@context.PluginType" FieldExpression=@(()=>context.PluginType) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.PortName" FieldExpression=@(()=>context.PortName) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.RemoteUrl" FieldExpression=@(()=>context.RemoteUrl) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.BindUrl" FieldExpression=@(()=>context.BindUrl) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.MaxClientCount" FieldExpression=@(()=>context.MaxClientCount) ShowTips=true Filterable=true Sortable=true Visible=false />
+        <TableColumn Field="@context.MaxConcurrentCount" FieldExpression=@(()=>context.MaxConcurrentCount) ShowTips=true Filterable=true Sortable=true Visible=false />
+
+        <TableColumn @bind-Field="@context.Id" Filterable=true Sortable=true Visible="false" DefaultSort=true DefaultSortOrder="SortOrder.Asc" />
+
+    </TableColumns>
+
+    <EditTemplate Context="context">
+        <ChannelEditComponent Model=@(context) ValidateEnable=false BatchEditEnable=false PluginType="ChannelDeviceHelpers.GetPluginType( SelectModel)"></ChannelEditComponent>
+    </EditTemplate>
+
+
+
+    <ExportButtonDropdownTemplate Context="ExportContext">
+        <Button class="dropdown-item" OnClick="() => ExcelExportAsync(ExportContext,true)" IsDisabled=@(!AuthorizeButton("导出"))>
+            <i class="fas fa-file-export"></i>
+            <span>@RazorLocalizer["ExportAll"]</span>
+        </Button>
+        <Button class="dropdown-item" OnClick="() => ExcelExportAsync(ExportContext)" IsDisabled=@(!AuthorizeButton("导出"))>
+            <i class="fas fa-file-export"></i>
+            <span>@RazorLocalizer["TablesExportButtonExcelText"]</span>
+        </Button>
+        <Button class="dropdown-item" OnClick="() => ExcelImportAsync(ExportContext)" IsDisabled=@(!AuthorizeButton("导入"))>
+            <i class="fas fa-file-import"></i>
+            <span>@RazorLocalizer["TablesImportButtonExcelText"]</span>
+        </Button>
+        <Button class="dropdown-item" OnClick="() => ExcelChannelAsync(ExportContext)" IsDisabled=@(!AuthorizeButton("导入"))>
+            <i class="fas fa-file-import"></i>
+            <span>@GatewayLocalizer["ExcelChannel"]</span>
+        </Button>
+    </ExportButtonDropdownTemplate>
+    <TableToolbarTemplate>
+
+        <TableToolbarButton TItem="ChannelRuntime" IsDisabled=@(!AuthorizeButton(AdminOperConst.Add))
+                            Color=Color.Success Text="@RazorLocalizer["Copy"]"
+                            OnClickCallback=@(Copy) />
+
+        <TableToolbarButton TItem="ChannelRuntime" IsDisabled=@(!AuthorizeButton(AdminOperConst.Edit))
+                            Color=Color.Info Text="@RazorLocalizer["BatchEdit"]"
+                            OnClickCallback=@(BatchEdit) />
+
+        <TableToolbarPopConfirmButton TItem="ChannelRuntime"
+                                      Color=Color.Warning Text="@RazorLocalizer["Clear"]" IsDisabled=@(!AuthorizeButton(AdminOperConst.Delete))
+                                      IsAsync OnConfirm=@(ClearAsync) />
+
+    </TableToolbarTemplate>
+</AdminTable>
+
+@code {
+    AdminTable<ChannelRuntime> table;
+}

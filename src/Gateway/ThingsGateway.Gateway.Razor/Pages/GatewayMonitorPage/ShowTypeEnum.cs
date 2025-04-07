@@ -12,6 +12,8 @@ namespace ThingsGateway.Gateway.Razor;
 
 public enum ShowTypeEnum
 {
-    Variable,
-    LogInfo
+    LogInfo,
+    ChannelTable,
+    DeviceTable,
+    VariableTable,
 }

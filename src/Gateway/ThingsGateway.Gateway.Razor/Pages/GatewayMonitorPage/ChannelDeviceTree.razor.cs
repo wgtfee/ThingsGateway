@@ -117,39 +117,17 @@ public partial class ChannelDeviceTree
             ShowFooter = false,
             ShowCloseButton = false,
         };
-        PluginTypeEnum? pluginTypeEnum = null;
-        Channel oneModel = null;
-        if (value is not ChannelDeviceTreeItem channelDeviceTreeItem) return;
 
-        if (channelDeviceTreeItem.TryGetChannelRuntime(out var channelRuntime))
-        {
-            oneModel = channelRuntime.Adapt<Channel>();
-            if (itemChangedType == ItemChangedType.Add)
-            {
-                oneModel.Id = 0;
-                oneModel.Name = $"{oneModel.Name}-Copy";
-            }
-        }
-        else if (channelDeviceTreeItem.TryGetPluginName(out var pluginName))
-        {
-            oneModel = new();
-            oneModel.PluginName = pluginName;
-        }
-        else if (channelDeviceTreeItem.TryGetPluginType(out var pluginType))
-        {
-            oneModel = new();
-            pluginTypeEnum = pluginType;
-        }
-        else
-        {
-            return;
-        }
+        if (value is not ChannelDeviceTreeItem channelDeviceTreeItem) return;
+        PluginTypeEnum? pluginTypeEnum = ChannelDeviceHelpers.GetPluginType(channelDeviceTreeItem);
+        var oneModel = ChannelDeviceHelpers.GetChannelModel(itemChangedType, channelDeviceTreeItem);
 
         op.Component = BootstrapDynamicComponent.CreateComponent<ChannelEditComponent>(new Dictionary<string, object?>
         {
              {nameof(ChannelEditComponent.OnValidSubmit), async () =>
             {
                 await Task.Run(() =>GlobalData.ChannelRuntimeService.SaveChannelAsync(oneModel,itemChangedType,AutoRestartThread));
+               await Notify();
             }},
             {nameof(ChannelEditComponent.Model),oneModel },
             {nameof(ChannelEditComponent.ValidateEnable),true },
@@ -163,15 +141,7 @@ public partial class ChannelDeviceTree
 
     async Task CopyChannel(ContextMenuItem item, object value)
     {
-        var op = new DialogOption()
-        {
-            IsScrolling = false,
-            ShowMaximizeButton = true,
-            Size = Size.ExtraLarge,
-            Title = item.Text,
-            ShowFooter = false,
-            ShowCloseButton = false,
-        };
+
         Channel oneModel = null;
         Dictionary<Device, List<Variable>> deviceDict = new();
         if (value is not ChannelDeviceTreeItem channelDeviceTreeItem) return;
@@ -188,25 +158,6 @@ public partial class ChannelDeviceTree
             return;
         }
 
-        op.Component = BootstrapDynamicComponent.CreateComponent<ChannelCopyComponent>(new Dictionary<string, object?>
-        {
-             {nameof(ChannelCopyComponent.OnSave), async (List<Channel> channels,Dictionary<Device,List<Variable>> devices) =>
-            {
-
-                await Task.Run(() =>GlobalData.ChannelRuntimeService.CopyAsync(channels,devices,AutoRestartThread, default));
-
-            }},
-            {nameof(ChannelCopyComponent.Model),oneModel },
-            {nameof(ChannelCopyComponent.Devices),deviceDict },
-        });
-
-        await DialogService.Show(op);
-
-    }
-
-
-    async Task BatchEditChannel(ContextMenuItem item, object value)
-    {
 
         var op = new DialogOption()
         {
@@ -217,6 +168,30 @@ public partial class ChannelDeviceTree
             ShowFooter = false,
             ShowCloseButton = false,
         };
+
+        op.Component = BootstrapDynamicComponent.CreateComponent<ChannelCopyComponent>(new Dictionary<string, object?>
+        {
+             {nameof(ChannelCopyComponent.OnSave), async (List<Channel> channels,Dictionary<Device,List<Variable>> devices) =>
+            {
+
+                await Task.Run(() =>GlobalData.ChannelRuntimeService.CopyAsync(channels,devices,AutoRestartThread, default));
+                    await Notify();
+
+            }},
+            {nameof(ChannelCopyComponent.Model),oneModel },
+            {nameof(ChannelCopyComponent.Devices),deviceDict },
+        });
+
+        await DialogService.Show(op);
+
+
+    }
+
+
+    async Task BatchEditChannel(ContextMenuItem item, object value)
+    {
+
+
 
         Channel oldModel = null;
         Channel oneModel = null;
@@ -257,27 +232,38 @@ public partial class ChannelDeviceTree
         {
             return;
         }
-
+        var op = new DialogOption()
+        {
+            IsScrolling = false,
+            ShowMaximizeButton = true,
+            Size = Size.ExtraLarge,
+            Title = item.Text,
+            ShowFooter = false,
+            ShowCloseButton = false,
+        };
 
         op.Component = BootstrapDynamicComponent.CreateComponent<ChannelEditComponent>(new Dictionary<string, object?>
         {
              {nameof(ChannelEditComponent.OnValidSubmit), async () =>
             {
-            Spinner.SetRun(true);
+                Spinner.SetRun(true);
                 await Task.Run(() => GlobalData.ChannelRuntimeService.BatchEditAsync(changedModels, oldModel, oneModel,AutoRestartThread));
-                       await InvokeAsync( ()=>
-            {
 
-            Spinner.SetRun(false);
-             StateHasChanged();
+              await Notify();
+                await InvokeAsync(() =>
+                {
+
+                    Spinner.SetRun(false);
                 });
-            }},
+
+            } },
             {nameof(ChannelEditComponent.Model),oneModel },
             {nameof(ChannelEditComponent.ValidateEnable),true },
             {nameof(ChannelEditComponent.BatchEditEnable),true },
         });
 
         await DialogService.Show(op);
+
 
     }
 
@@ -315,11 +301,11 @@ public partial class ChannelDeviceTree
     }
 finally
                 {
-                                 await InvokeAsync( ()=>
+               await Notify();
+            await InvokeAsync( ()=>
             {
 
             Spinner.SetRun(false);
-             StateHasChanged();
                 });
                 }
 
@@ -433,10 +419,10 @@ finally
                 Spinner.SetRun(true);
 
                 await Task.Run(() => GlobalData.ChannelRuntimeService.DeleteChannelAsync(modelIds.Select(a => a.Id), AutoRestartThread, default));
+                await Notify();
                 await InvokeAsync(() =>
                 {
                     Spinner.SetRun(false);
-                    StateHasChanged();
                 });
             }
 
@@ -477,10 +463,10 @@ finally
 
                 var key = await GlobalData.GetCurrentUserChannels().ConfigureAwait(false);
                 await Task.Run(() => GlobalData.ChannelRuntimeService.DeleteChannelAsync(key.Select(a => a.Id), AutoRestartThread, default));
+                await Notify();
                 await InvokeAsync(() =>
                 {
                     Spinner.SetRun(false);
-                    StateHasChanged();
                 });
             }
 
@@ -599,10 +585,10 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
 
             });
             await Task.Run(() => GlobalData.ChannelRuntimeService.ImportChannelAsync(value, AutoRestartThread));
+            await Notify();
             await InvokeAsync(() =>
             {
                 Spinner.SetRun(false);
-                StateHasChanged();
             });
 
         });
@@ -654,6 +640,7 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
             {
 
                 await Task.Run(() =>GlobalData.DeviceRuntimeService.CopyAsync(devices,AutoRestartThread, default));
+               await Notify();
 
             }},
             {nameof(DeviceCopyComponent.Model),oneModel },
@@ -703,6 +690,7 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
              {nameof(DeviceEditComponent.OnValidSubmit), async () =>
              {
                  await Task.Run(() =>GlobalData.DeviceRuntimeService.SaveDeviceAsync(oneModel,itemChangedType, AutoRestartThread));
+               await Notify();
             }},
             {nameof(DeviceEditComponent.Model),oneModel },
             {nameof(DeviceEditComponent.AutoRestartThread),AutoRestartThread },
@@ -836,11 +824,11 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
     }
 finally
                 {
+                await Notify();
                                  await InvokeAsync( ()=>
             {
 
             Spinner.SetRun(false);
-             StateHasChanged();
                 });
                 }
 
@@ -1139,7 +1127,6 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
             await Notify();
             await InvokeAsync(() =>
             {
-
                 Spinner.SetRun(false);
             });
 
@@ -1157,12 +1144,12 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
 
     #endregion
 
+
+
     [Inject]
     SwalService SwalService { get; set; }
     [Inject]
     ToastService ToastService { get; set; }
-
-
 
     [Parameter]
     [NotNull]
@@ -1309,6 +1296,10 @@ EventCallback.Factory.Create<MouseEventArgs>(this, async e =>
             {
                 if (Disposed) return;
                 await OnClickSearch(SearchText);
+                if (ChannelDeviceChanged != null)
+                {
+                    await ChannelDeviceChanged.Invoke(Value);
+                }
                 await InvokeAsync(StateHasChanged);
             }
             finally

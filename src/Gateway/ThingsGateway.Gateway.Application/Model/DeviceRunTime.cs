@@ -42,11 +42,13 @@ public class DeviceRuntime : Device, IDisposable
     /// <summary>
     /// 插件名称
     /// </summary>
+    [AutoGenerateColumn(Ignore = true)]
     public virtual PluginTypeEnum? PluginType => ChannelRuntime?.PluginInfo?.PluginType;
 
     /// <summary>
     /// 是否采集
     /// </summary>
+    [AutoGenerateColumn(Ignore = true)]
     public bool? IsCollect => PluginType == null ? null : PluginType == PluginTypeEnum.Collect;
 
     /// <summary>
@@ -55,12 +57,14 @@ public class DeviceRuntime : Device, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public ChannelRuntime? ChannelRuntime { get; set; }
 
     /// <summary>
     /// 通道名称
     /// </summary>
     public string? ChannelName => ChannelRuntime?.Name;
+    [AutoGenerateColumn(Ignore = true)]
     public string LogPath => Name.GetDeviceLogPath();
 
     /// <summary>
@@ -113,6 +117,7 @@ public class DeviceRuntime : Device, IDisposable
     /// <summary>
     /// 设备属性数量
     /// </summary>
+    [AutoGenerateColumn(Ignore = true)]
     public int PropertysCount { get => DevicePropertys == null ? 0 : DevicePropertys.Count; }
 
     /// <summary>
@@ -158,6 +163,7 @@ public class DeviceRuntime : Device, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public List<VariableMethod>? ReadVariableMethods { get; set; }
 
     /// <summary>
@@ -171,6 +177,7 @@ public class DeviceRuntime : Device, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public List<VariableSourceRead>? VariableSourceReads { get; set; }
 
     /// <summary>
@@ -179,6 +186,7 @@ public class DeviceRuntime : Device, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public List<VariableScriptRead>? VariableScriptReads { get; set; }
 
 
@@ -213,6 +221,7 @@ public class DeviceRuntime : Device, IDisposable
     [System.Text.Json.Serialization.JsonIgnore]
     [Newtonsoft.Json.JsonIgnore]
     [AdaptIgnore]
+    [AutoGenerateColumn(Ignore = true)]
     public IDriver? Driver { get; internal set; }
 
 

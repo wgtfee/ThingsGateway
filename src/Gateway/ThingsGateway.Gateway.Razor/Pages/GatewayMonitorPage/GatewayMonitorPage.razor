@@ -13,9 +13,10 @@
         <FirstPaneTemplate>
 
 
-            <Card IsShadow=true class="h-100" Color="Color.Primary">
+            <Card IsShadow=true class="h-100 me-1" Color="Color.Primary">
                 <BodyTemplate>
-                    <ChannelDeviceTree @bind-ShowType=ShowType AutoRestartThread="AutoRestartThread" ChannelDeviceChanged="TreeChangedAsync" Value="SelectModel"></ChannelDeviceTree>
+                    <ChannelDeviceTree @bind-ShowType=ShowType AutoRestartThread="AutoRestartThread"
+                                       ChannelDeviceChanged="TreeChangedAsync" Value="SelectModel"></ChannelDeviceTree>
                 </BodyTemplate>
             </Card>
 
@@ -23,7 +24,9 @@
         </FirstPaneTemplate>
         <SecondPaneTemplate>
 
-            <GatewayInfo AutoRestartThread=AutoRestartThread SelectModel=SelectModel ShowChannelRuntime=ShowChannelRuntime ShowDeviceRuntime=ShowDeviceRuntime ShowType=ShowType VariableRuntimes=VariableRuntimes />
+            <div class="h-100 ms-1">
+                <GatewayInfo AutoRestartThread=AutoRestartThread SelectModel=SelectModel ShowChannelRuntime=ShowChannelRuntime ShowDeviceRuntime=ShowDeviceRuntime ShowType=ShowType VariableRuntimes=VariableRuntimes ChannelRuntimes="ChannelRuntimes" DeviceRuntimes="DeviceRuntimes" />
+            </div>
 
         </SecondPaneTemplate>
     </Split>

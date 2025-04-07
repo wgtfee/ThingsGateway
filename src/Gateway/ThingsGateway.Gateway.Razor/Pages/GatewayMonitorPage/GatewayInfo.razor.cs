@@ -15,11 +15,16 @@ namespace ThingsGateway.Gateway.Razor;
 public partial class GatewayInfo
 {
     [Parameter]
-    public ChannelDeviceTreeItem SelectModel { get; set; } = new() { ChannelDevicePluginType = ChannelDevicePluginTypeEnum.PluginType, PluginType = PluginTypeEnum.Collect };
+    public ChannelDeviceTreeItem SelectModel { get; set; } = new() { ChannelDevicePluginType = ChannelDevicePluginTypeEnum.PluginType, PluginType = null };
 
     [Parameter]
     public IEnumerable<VariableRuntime> VariableRuntimes { get; set; } = Enumerable.Empty<VariableRuntime>();
 
+    [Parameter]
+    public IEnumerable<ChannelRuntime> ChannelRuntimes { get; set; } = Enumerable.Empty<ChannelRuntime>();
+
+    [Parameter]
+    public IEnumerable<DeviceRuntime> DeviceRuntimes { get; set; } = Enumerable.Empty<DeviceRuntime>();
     [Parameter]
     public long ShowChannelRuntime { get; set; }
     [Parameter]
