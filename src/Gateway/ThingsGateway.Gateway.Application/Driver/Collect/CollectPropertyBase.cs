@@ -26,7 +26,7 @@ public abstract class CollectPropertyBase : DriverPropertyBase
     /// 离线后恢复运行的间隔时间
     /// </summary>
     [DynamicProperty]
-    public virtual int ReIntervalTime { get; set; } = 30000;
+    public virtual int ReIntervalTime { get; set; } = 0;
 
     /// <summary>
     /// 失败重试次数，默认3

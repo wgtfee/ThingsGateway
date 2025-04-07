@@ -589,11 +589,19 @@ internal sealed class DeviceThreadManage : IAsyncDisposable, IDeviceThreadManage
                     // 如果驱动处于离线状态且为采集驱动，则根据配置的间隔时间进行延迟
                     if (driver.CurrentDevice.DeviceStatus == DeviceStatusEnum.OffLine && IsCollectChannel == true)
                     {
-                        await Task.Delay(Math.Max(Math.Min(((CollectBase)driver).CollectProperties.ReIntervalTime, ManageHelper.ChannelThreadOptions.CheckInterval / 2) - CycleInterval, 3000), token).ConfigureAwait(false);
+                        var collectBase = (CollectBase)driver;
+                        if (collectBase.CollectProperties.ReIntervalTime > 0)
+                        {
+                            await Task.Delay(Math.Max(Math.Min(collectBase.CollectProperties.ReIntervalTime, ManageHelper.ChannelThreadOptions.CheckInterval / 2) - CycleInterval, 3000), token).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await Task.Delay(CycleInterval, token).ConfigureAwait(false);
+                        }
                     }
                     else
                     {
-                        await Task.Delay(CycleInterval, token).ConfigureAwait(false); // 默认延迟一段时间后再继续执行
+                        await Task.Delay(CycleInterval, token).ConfigureAwait(false);
                     }
                 }
                 else if (result == ThreadRunReturnTypeEnum.Continue)
