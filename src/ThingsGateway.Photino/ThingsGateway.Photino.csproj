@@ -44,7 +44,7 @@
 	<!--打包复制-->
 	<Import Project="..\ThingsGateway.Server\targets\PluginPublish.targets" />
 	<PropertyGroup>
-		<TargetFrameworks>net9.0;net8.0;</TargetFrameworks>
+		<TargetFrameworks>net8.0;net9.0;</TargetFrameworks>
 		<CustomTargetFramework>$(TargetFramework)</CustomTargetFramework>
 		<OutputType>WinExe</OutputType>
 		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>

@@ -42,7 +42,7 @@
 	<!--打包复制-->
 	<Import Project="targets\PluginPublish.targets" />
 	<PropertyGroup>
-		<TargetFrameworks>net9.0;net8.0;</TargetFrameworks>
+		<TargetFrameworks>net8.0;net9.0;</TargetFrameworks>
 		<CustomTargetFramework>$(TargetFramework)</CustomTargetFramework>
 		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
 		<SatelliteResourceLanguages>zh-Hans;en-US</SatelliteResourceLanguages>
