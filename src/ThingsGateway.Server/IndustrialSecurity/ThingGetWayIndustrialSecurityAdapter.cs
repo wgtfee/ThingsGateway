@@ -1,4 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 using Industrial.Security.Abstractions;
 using Microsoft.AspNetCore.Http;
 using SqlSugar;
@@ -81,7 +86,8 @@ public sealed class ThingGetWayLocalPermissionSource(
         var mapped = ThingGetWayPermissionCodeMapper.MapToLocal(permissionCode);
         var granted = user.PermissionCodeList ?? [];
         return mapped.Any(required => granted.Any(actual =>
-            string.Equals(actual, required, StringComparison.OrdinalIgnoreCase)
+            string.Equals(actual, permissionCode, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(actual, required, StringComparison.OrdinalIgnoreCase)
             || actual.Trim('/').StartsWith(required.Trim('/').TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)));
     }
 }
