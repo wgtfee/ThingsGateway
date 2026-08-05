@@ -8,7 +8,7 @@
 		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.Kafka\ThingsGateway.Plugin.Kafka.csproj" />
 		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.Mqtt\ThingsGateway.Plugin.Mqtt.csproj" />
 		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.OpcDa\ThingsGateway.Plugin.OpcDa.csproj" />
-		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.OpcUa\ThingsGateway.Plugin.OpcUa.csproj" />
+		<!-- OPC UA is excluded from the public debug host when its source/package version is unavailable. -->
 		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.RabbitMQ\ThingsGateway.Plugin.RabbitMQ.csproj" />
 		<ProjectReference Include="..\Plugin\ThingsGateway.Plugin.Http\ThingsGateway.Plugin.Http.csproj" />
 	</ItemGroup>

@@ -113,7 +113,7 @@ public class UdpSessionChannel : UdpSession, IClientChannel
     public CancellationToken ClosedToken => this.m_transport == null ? new CancellationToken(true) : this.m_transport.Token;
     private CancellationTokenSource m_transport;
     /// <inheritdoc/>
-    public override async Task StartAsync()
+    public virtual async Task StartAsync()
     {
         if (ServerState != ServerState.Running)
         {

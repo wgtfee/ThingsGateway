@@ -39,7 +39,7 @@ public abstract class TcpServiceChannelBase<TClient> : TcpService<TClient>, ITcp
 
     private readonly WaitLock _connectLock = new WaitLock(nameof(TcpServiceChannelBase<TClient>));
     /// <inheritdoc/>
-    public override async Task StartAsync()
+    public virtual async Task StartAsync()
     {
         if (ServerState != ServerState.Running)
         {

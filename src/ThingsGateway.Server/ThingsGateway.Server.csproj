@@ -6,7 +6,8 @@
 	<ItemGroup Condition=" '$(SolutionName)' != 'ThingsGatewayRelease'">
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Application\ThingsGateway.Gateway.Application.csproj" />
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Razor\ThingsGateway.Gateway.Razor.csproj" />
-		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
+    <ProjectReference Include="..\..\..\Industrial.Health\src\Industrial.Health.Abstractions\Industrial.Health.Abstractions.csproj" />
 		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.AspNetCore\Industrial.Security.AspNetCore.csproj" />
 	</ItemGroup>
 
@@ -26,7 +27,7 @@
 	<!--<Import Project="targets\Plugin.targets" />-->
 
 	<!--nuget包解压复制文件，上下文动态加载，Pro插件-->
-	<Import Project="targets\Pro2.targets" Condition=" '$(SolutionName)' != 'ThingsGatewayPro' OR  '$(Configuration)' != 'Debug'" />
+	<Import Project="targets\Pro2.targets" Condition=" ('$(SolutionName)' != 'ThingsGatewayPro' OR  '$(Configuration)' != 'Debug') AND '$(EnableProPackages)' == 'true'" />
 
 	<!--直接引用Pro-->
 	<Import Project="targets\PluginDebug.targets" Condition=" '$(SolutionName)' == 'ThingsGatewayPro' AND '$(Configuration)' == 'Debug'" />
@@ -38,11 +39,15 @@
 	<Import Project="targets\Pro5.targets" Condition=" '$(SolutionName)' == 'ThingsGatewayPro' " />-->
 	<!--<Import Project="targets\Pro6.targets" Condition=" '$(SolutionName)' == 'ThingsGatewayPro' AND '$(Configuration)' != 'Debug'" />-->
 	<!--nuget包解压复制文件，上下文动态加载，Pro插件-->
-	<Import Project="targets\Pro7.targets" Condition=" '$(SolutionName)' != 'ThingsGatewayPro' OR  '$(Configuration)' != 'Debug'" />
+	<Import Project="targets\Pro7.targets" Condition=" ('$(SolutionName)' != 'ThingsGatewayPro' OR  '$(Configuration)' != 'Debug') AND '$(EnableProPackages)' == 'true'" />
 
 	<!--打包复制-->
 	<Import Project="targets\PluginPublish.targets" />
 	<PropertyGroup>
+		<!-- The public source tree does not include the commercial Pro plugin packages.
+		     Keep the normal debug build self-contained; set EnableProPackages=true when
+		     those packages are available from the private package feed. -->
+		<EnableProPackages Condition="'$(EnableProPackages)' == ''">false</EnableProPackages>
 
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 

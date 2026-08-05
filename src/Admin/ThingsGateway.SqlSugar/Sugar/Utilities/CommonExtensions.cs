@@ -157,7 +157,9 @@ namespace System.Collections.Generic
 {
     public static class EnumerableExtensions
     {
-        public static bool Contains<T>(this IEnumerable<T> thisValue, T likeKey, bool isNvarchar)
+        // Use a distinct name to avoid colliding with SqlSugar's own extension
+        // when both assemblies are referenced by the host.
+        public static bool ContainsWithNvarchar<T>(this IEnumerable<T> thisValue, T likeKey, bool isNvarchar)
         {
             return thisValue.Contains(likeKey);
         }

@@ -1,4 +1,3 @@
-using SqlSugar;
 using ThingsGateway.DB;
 
 namespace ThingsGateway.Admin.Application;

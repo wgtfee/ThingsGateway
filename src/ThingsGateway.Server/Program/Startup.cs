@@ -16,6 +16,7 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using Industrial.Security.Abstractions;
 using Industrial.Security.AspNetCore;
+using Industrial.Health;
 using ThingsGateway.Admin.Application;
 using ThingsGateway.Admin.Razor;
 using ThingsGateway.Common;
@@ -385,20 +386,41 @@ public class Startup : AppStartup
             app.MapIndustrialSecurityCacheInvalidation();
             app.MapIndustrialLocalUserManagementInfo();
             app.MapIndustrialEmergencyValidation();
-            // V0.7 service health contract. These endpoints report the collector
-            // process/configuration only; PLC/device state is intentionally kept
-            // separate and is exposed by the device pages/telemetry APIs.
-            app.MapGet("/health/live", () => Results.Ok(new
+            // V0.7.1: host/application health is independent from PLC/device
+            // domain health. Device state is exposed by /health/domain and does
+            // not automatically block host traffic.
+            app.MapGet("/health/live", () =>
             {
-                status = "alive",
-                service = "thinggateway",
-                timestamp = DateTimeOffset.UtcNow
-            }));
-            app.MapGet("/health/ready", () => Results.Ok(new
+                var now = DateTimeOffset.UtcNow;
+                return Results.Ok(new
+                {
+                    service = "thinggateway",
+                    instance = Environment.MachineName,
+                    status = ServiceStatus.Healthy,
+                    application = new ApplicationHealth(ServiceStatus.Healthy, true, now),
+                    checkedAt = now
+                });
+            });
+            app.MapGet("/health/dependencies", () =>
             {
-                status = "ready",
+                var snapshot = HealthSnapshotEvaluator.Evaluate("thinggateway", Environment.MachineName, Array.Empty<DependencyHealthItem>());
+                return Results.Ok(snapshot);
+            });
+            app.MapGet("/health/traffic", () =>
+            {
+                var snapshot = HealthSnapshotEvaluator.Evaluate("thinggateway", Environment.MachineName, Array.Empty<DependencyHealthItem>());
+                var traffic = HealthSnapshotEvaluator.ToTrafficHealth(snapshot);
+                return Results.Ok(traffic);
+            });
+            app.MapGet("/health/domain", () => Results.Ok(new
+            {
                 service = "thinggateway",
-                timestamp = DateTimeOffset.UtcNow
+                hostStatus = ServiceStatus.Healthy,
+                trafficStatus = TrafficStatus.Allowed,
+                domainStatus = ServiceStatus.Unknown,
+                devices = Array.Empty<object>(),
+                message = "设备域状态由采集/遥测模块提供，未连接设备时不影响 Host 流量。",
+                checkedAt = DateTimeOffset.UtcNow
             }));
             app.MapGet("/healthz", () => Results.Ok(new
             {
