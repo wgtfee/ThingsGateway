@@ -1,0 +1,196 @@
+using System.Security.Claims;
+using Industrial.Security.Abstractions;
+using Microsoft.AspNetCore.Http;
+using SqlSugar;
+using ThingsGateway.Admin.Application;
+using ThingsGateway.DB;
+
+namespace ThingsGateway.Server.IndustrialSecurity;
+
+/// <summary>
+/// Bridges ThingGetWay's existing cookie/JWT and role/menu permission model to
+/// the platform security contract. The existing password and role tables remain
+/// the source of truth in Local mode.
+/// </summary>
+public sealed class ThingGetWayCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+{
+    private ClaimsPrincipal Principal => accessor.HttpContext?.User ?? new ClaimsPrincipal(new ClaimsIdentity());
+
+    public IdentitySource Source => Enum.TryParse<IdentitySource>(Find("identity_source"), true, out var source)
+        ? source
+        : (Find("global_user_id") is not null || (Find("sub") is not null && Find(ClaimConst.UserId) is null)
+            ? IdentitySource.Platform
+            : IdentitySource.Local);
+
+    public string? UserId => Source == IdentitySource.Platform
+        ? Find("global_user_id") ?? Find("sub")
+        : Find("local_user_id") ?? Find(ClaimConst.UserId) ?? Find(ClaimTypes.NameIdentifier) ?? Find(ClaimTypes.Name);
+
+    public string? UserName => Find("name") ?? Find(ClaimConst.Account) ?? Find(ClaimTypes.Name) ?? UserId;
+    public string? TenantId => Find("tenant_id") ?? Find("tenant") ?? Find(ClaimConst.TenantId);
+    public string? LocalUserId => Find("local_user_id") ?? (Source == IdentitySource.Local ? UserId : null);
+    public string? GlobalUserId => Find("global_user_id") ?? (Source == IdentitySource.Platform ? Find("sub") : null);
+    public IReadOnlyCollection<string> Roles => Principal.Claims
+        .Where(c => c.Type == ClaimTypes.Role || string.Equals(c.Type, "role", StringComparison.OrdinalIgnoreCase))
+        .Select(c => c.Value)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+    public long PermissionVersion => long.TryParse(Find("permission_version"), out var version) ? version : 0;
+    public bool IsAuthenticated => Principal.Identity?.IsAuthenticated == true;
+
+    private string? Find(string type) => Principal.Claims.FirstOrDefault(c =>
+        string.Equals(c.Type, type, StringComparison.OrdinalIgnoreCase))?.Value;
+}
+
+public sealed class ThingGetWayIdentityProvider(ThingGetWayCurrentUser currentUser) : IIdentityProvider
+{
+    public CurrentIdentity GetCurrentIdentity() => new(
+        currentUser.UserId,
+        currentUser.UserName,
+        currentUser.TenantId,
+        currentUser.Source,
+        currentUser.GlobalUserId,
+        currentUser.Roles,
+        currentUser.PermissionVersion,
+        currentUser.IsAuthenticated,
+        currentUser.LocalUserId);
+}
+
+public sealed class ThingGetWayLocalPermissionSource(
+    IHttpContextAccessor accessor,
+    ISysUserService users) : ILocalPermissionSource
+{
+    public async Task<bool> HasPermissionAsync(string userId, string permissionCode, CancellationToken cancellationToken = default)
+    {
+        var principal = accessor.HttpContext?.User;
+        if (principal?.Identity?.IsAuthenticated != true)
+            return false;
+
+        if (string.Equals(principal.FindFirst(ClaimConst.SuperAdmin)?.Value, "true", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!long.TryParse(userId, out var localUserId))
+            localUserId = long.TryParse(principal.FindFirst(ClaimConst.UserId)?.Value, out var claimUserId) ? claimUserId : 0;
+        if (localUserId <= 0)
+            return false;
+
+        var user = await users.GetUserByIdAsync(localUserId).ConfigureAwait(false);
+        if (user is null || !user.Status)
+            return false;
+
+        var mapped = ThingGetWayPermissionCodeMapper.MapToLocal(permissionCode);
+        var granted = user.PermissionCodeList ?? [];
+        return mapped.Any(required => granted.Any(actual =>
+            string.Equals(actual, required, StringComparison.OrdinalIgnoreCase)
+            || actual.Trim('/').StartsWith(required.Trim('/').TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)));
+    }
+}
+
+public sealed class ThingGetWayPermissionCodeMapper : IPermissionCodeMapper
+{
+    private static readonly IReadOnlyDictionary<string, string[]> Mappings = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["THINGGATEWAY.Gateway"] = ["gateway"],
+        ["THINGGATEWAY.Gateway.Page"] = ["gateway/monitor"],
+        ["THINGGATEWAY.Gateway.View"] = ["gateway/monitor", "openApi/runtimeInfo"],
+        ["THINGGATEWAY.Gateway.Control"] = ["gateway/monitor", "openApi/control"],
+        ["THINGGATEWAY.Gateway.Manage"] = ["gateway/system", "openApi/management"],
+        ["THINGGATEWAY.Gateway.Export"] = ["gateway/monitor", "api/gatewayExport"],
+        ["THINGGATEWAY.Gateway.System"] = ["gateway/system"],
+        ["THINGGATEWAY.Gateway.Plugin"] = ["gateway/plugin"],
+        ["THINGGATEWAY.Gateway.Rules"] = ["gateway/rules"],
+        ["THINGGATEWAY.Gateway.RealAlarm"] = ["gateway/realalarm"],
+        ["THINGGATEWAY.Management.Users"] = ["admin/user"],
+        ["THINGGATEWAY.Management.Roles"] = ["admin/role"],
+        ["THINGGATEWAY.Management.Resources"] = ["admin/resource"],
+        ["THINGGATEWAY.Management.Organizations"] = ["admin/org"],
+        ["THINGGATEWAY.Management.Configuration"] = ["admin/config"],
+        ["THINGGATEWAY.Management.Dictionary"] = ["admin/dict"],
+        ["THINGGATEWAY.Management.Positions"] = ["admin/position"],
+        ["THINGGATEWAY.Management.Sessions"] = ["admin/session"],
+        ["THINGGATEWAY.Management.OperationLog"] = ["admin/oplog"],
+        ["THINGGATEWAY.Management.UserCenter"] = ["usercenter"],
+        ["THINGGATEWAY.Management.BackendLog"] = ["gateway/backendlog"],
+        ["THINGGATEWAY.Management.RpcLog"] = ["gateway/rpclog"]
+    };
+
+    internal static IEnumerable<string> KnownCodes => Mappings.Keys;
+
+    public PermissionMappingResult Map(string permissionCode)
+    {
+        var normalized = permissionCode?.Trim() ?? string.Empty;
+        if (normalized == "*") return new(normalized, true, ["*"]);
+        return Mappings.TryGetValue(normalized, out var local)
+            ? new(normalized, true, local, "ThingGetWay route/controller permission")
+            : new(normalized, false, [], "Unknown ThingGetWay permission");
+    }
+
+    internal static IReadOnlyCollection<string> MapToLocal(string permissionCode)
+        => Mappings.TryGetValue(permissionCode?.Trim() ?? string.Empty, out var local) ? local : [permissionCode];
+}
+
+public sealed class ThingGetWayLocalPermissionProvider(
+    IHttpContextAccessor accessor,
+    ISysUserService users) : IUserPermissionProvider
+{
+    public async Task<UserPermissionSnapshot> GetPermissionsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        var permissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (long.TryParse(userId, out var localUserId))
+        {
+            var user = await users.GetUserByIdAsync(localUserId).ConfigureAwait(false);
+            if (user?.PermissionCodeList is not null)
+                permissions.UnionWith(user.PermissionCodeList);
+        }
+
+        var principal = accessor.HttpContext?.User;
+        if (string.Equals(principal?.FindFirst(ClaimConst.SuperAdmin)?.Value, "true", StringComparison.OrdinalIgnoreCase))
+            permissions.Add("*");
+
+        foreach (var mapping in ThingGetWayPermissionCodeMapper.KnownCodes)
+        {
+            if (await new ThingGetWayLocalPermissionSource(accessor, users).HasPermissionAsync(userId, mapping, cancellationToken))
+                permissions.Add(mapping);
+        }
+
+        return new UserPermissionSnapshot(userId, 0, permissions);
+    }
+}
+
+/// <summary>Shadow mapping for centralized IAM identities; it never stores a password.</summary>
+public sealed class ThingGetWayShadowUserResolver(ISqlSugarClient db) : IShadowUserResolver
+{
+    private const string SystemCode = "THINGGATEWAY";
+
+    public Task<ShadowUserSnapshot?> ResolveAsync(string iamUserId, CancellationToken cancellationToken = default)
+        => Task.FromResult(db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId) is { } row ? ToSnapshot(row) : null);
+
+    public Task<ShadowUserSnapshot?> EnsureAsync(string iamUserId, string? userName, string? displayName, CancellationToken cancellationToken = default)
+    {
+        var row = db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId);
+        if (row is null)
+        {
+            row = new ThingGetWayShadowUserEntity
+            {
+                IamUserId = iamUserId,
+                LocalUserId = $"{SystemCode}:{iamUserId}",
+                UserName = userName,
+                DisplayName = displayName
+            };
+            db.Insertable(row).ExecuteCommand();
+        }
+        else
+        {
+            row.UserName = userName;
+            row.DisplayName = displayName;
+            row.UpdatedAt = DateTime.UtcNow;
+            db.Updateable(row).ExecuteCommand();
+        }
+
+        return Task.FromResult<ShadowUserSnapshot?>(ToSnapshot(row));
+    }
+
+    private static ShadowUserSnapshot ToSnapshot(ThingGetWayShadowUserEntity row) => new(
+        row.Id, SystemCode, row.LocalUserId, row.IamUserId, row.UserName, row.DisplayName,
+        null, null, IdentitySource.Platform, row.Status, row.CreatedAt, row.UpdatedAt);
+}

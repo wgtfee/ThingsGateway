@@ -13,6 +13,7 @@ using BootstrapBlazor.Components;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Industrial.Security.Abstractions;
 
 using ThingsGateway.Authentication;
 
@@ -24,6 +25,7 @@ namespace ThingsGateway.Gateway.Application;
 [ApiDescriptionSettings("ThingsGateway.OpenApi", Order = 200)]
 [Route("openApi/management/[action]")]
 [RolePermission]
+[Permission("THINGGATEWAY.Gateway.Manage")]
 [RequestAudit]
 [ApiController]
 [Authorize(AuthenticationSchemes = "Bearer")]

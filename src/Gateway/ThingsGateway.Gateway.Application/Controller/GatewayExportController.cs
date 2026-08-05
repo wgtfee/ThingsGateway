@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Industrial.Security.Abstractions;
 
 namespace ThingsGateway.Gateway.Application;
 
@@ -19,6 +20,7 @@ namespace ThingsGateway.Gateway.Application;
 [ApiDescriptionSettings(false)]
 [Route("api/gatewayExport")]
 [IgnoreRolePermission]
+[Permission("THINGGATEWAY.Gateway.Export")]
 [Authorize]
 public class GatewayExportController : ControllerBase
 {

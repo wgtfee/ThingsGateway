@@ -1,0 +1,32 @@
+{
+  "system": {
+    "code": "THINGGATEWAY",
+    "name": "ThingGetWay 设备采集网关",
+    "description": "设备采集、通道、变量和网关运维权限"
+  },
+  "version": "1.0.0",
+  "resources": [
+    { "code": "THINGGATEWAY.Gateway", "name": "设备采集网关", "type": "Menu" },
+    { "code": "THINGGATEWAY.Gateway.Page", "name": "网关监控", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/monitor" },
+    { "code": "THINGGATEWAY.Gateway.View", "name": "查看设备采集状态", "type": "Button", "parentCode": "THINGGATEWAY.Gateway.Page", "apiPath": "/api/thinggateway/openApi/runtimeInfo/*", "httpMethod": "GET" },
+    { "code": "THINGGATEWAY.Gateway.Control", "name": "控制通道设备变量", "type": "Button", "parentCode": "THINGGATEWAY.Gateway.Page", "apiPath": "/api/thinggateway/openApi/control/*", "httpMethod": "POST" },
+    { "code": "THINGGATEWAY.Gateway.Manage", "name": "网关配置管理", "type": "Button", "parentCode": "THINGGATEWAY.Gateway.Page", "apiPath": "/api/thinggateway/openApi/management/*", "httpMethod": "*" },
+    { "code": "THINGGATEWAY.Gateway.Export", "name": "导出网关配置", "type": "Button", "parentCode": "THINGGATEWAY.Gateway.Page", "apiPath": "/api/thinggateway/api/gatewayExport/*", "httpMethod": "POST" },
+    { "code": "THINGGATEWAY.Gateway.System", "name": "网关系统设置", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/system" },
+    { "code": "THINGGATEWAY.Gateway.Plugin", "name": "插件管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/plugin" },
+    { "code": "THINGGATEWAY.Gateway.Rules", "name": "规则引擎", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/rules" },
+    { "code": "THINGGATEWAY.Gateway.RealAlarm", "name": "实时告警", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/realalarm" },
+    { "code": "THINGGATEWAY.Management.Users", "name": "用户管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/user" },
+    { "code": "THINGGATEWAY.Management.Roles", "name": "角色管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/role" },
+    { "code": "THINGGATEWAY.Management.Resources", "name": "资源管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/resource" },
+    { "code": "THINGGATEWAY.Management.Organizations", "name": "组织管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/org" },
+    { "code": "THINGGATEWAY.Management.Configuration", "name": "系统配置", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/config" },
+    { "code": "THINGGATEWAY.Management.Dictionary", "name": "字典管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/dict" },
+    { "code": "THINGGATEWAY.Management.Positions", "name": "岗位管理", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/position" },
+    { "code": "THINGGATEWAY.Management.Sessions", "name": "在线会话", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/session" },
+    { "code": "THINGGATEWAY.Management.OperationLog", "name": "操作日志", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/admin/oplog" },
+    { "code": "THINGGATEWAY.Management.UserCenter", "name": "个人中心", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/usercenter" },
+    { "code": "THINGGATEWAY.Management.BackendLog", "name": "后台日志", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/backendlog" },
+    { "code": "THINGGATEWAY.Management.RpcLog", "name": "RPC 日志", "type": "Page", "parentCode": "THINGGATEWAY.Gateway", "route": "/gateway/rpclog" }
+  ]
+}

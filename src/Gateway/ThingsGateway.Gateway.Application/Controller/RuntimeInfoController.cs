@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Industrial.Security.Abstractions;
 
 using System.ComponentModel;
 
@@ -26,6 +27,7 @@ namespace ThingsGateway.Gateway.Application;
 [Route("openApi/runtimeInfo")]
 [ApiController]
 [RolePermission]
+[Permission("THINGGATEWAY.Gateway.View")]
 [Authorize(AuthenticationSchemes = "Bearer")]
 [TouchSocket.WebApi.Router("/miniapi/runtimeinfo/[action]")]
 [TouchSocket.WebApi.EnableCors("cors")]

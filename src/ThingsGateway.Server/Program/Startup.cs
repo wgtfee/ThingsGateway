@@ -1,14 +1,4 @@
-﻿//------------------------------------------------------------------------------
-//  此代码版权声明为全文件覆盖，如有原作者特别声明，会在下方手动补充
-//  此代码版权（除特别声明外的代码）归作者本人Diego所有
-//  源代码使用协议遵循本仓库的开源协议及附加协议
-//  Gitee源代码仓库：https://gitee.com/diego2098/ThingsGateway
-//  Github源代码仓库：https://github.com/kimdiego2098/ThingsGateway
-//  使用文档：https://thingsgateway.cn/
-//  QQ群：605534569
-//------------------------------------------------------------------------------
-
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -20,17 +10,17 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
-
 using Newtonsoft.Json;
-
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Encodings.Web;
 using System.Text.Unicode;
-
+using Industrial.Security.Abstractions;
+using Industrial.Security.AspNetCore;
 using ThingsGateway.Admin.Application;
 using ThingsGateway.Admin.Razor;
 using ThingsGateway.Common;
 using ThingsGateway.DB;
+using ThingsGateway.Server.IndustrialSecurity;
 using ThingsGateway.VirtualFileServer;
 
 namespace ThingsGateway.Server;
@@ -40,6 +30,18 @@ public class Startup : AppStartup
 {
     public void ConfigBlazorServer(IServiceCollection services)
     {
+        // Keep ThingGetWay's existing local authentication/role engine, while
+        // exposing the same Industrial.Security contract used by MOL/WCS.
+        services.AddHttpContextAccessor();
+        services.AddIndustrialSecurity(App.Configuration);
+        services.AddScoped<ThingGetWayCurrentUser>();
+        services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<ThingGetWayCurrentUser>());
+        services.AddScoped<IIdentityProvider, ThingGetWayIdentityProvider>();
+        services.AddScoped<ILocalPermissionSource, ThingGetWayLocalPermissionSource>();
+        services.AddScoped<IPermissionCodeMapper, ThingGetWayPermissionCodeMapper>();
+        services.AddScoped<IUserPermissionProvider, ThingGetWayLocalPermissionProvider>();
+        services.AddScoped<IPermissionProvider, ThingGetWayLocalPermissionProvider>();
+        services.AddScoped<IShadowUserResolver, ThingGetWayShadowUserResolver>();
 
         // 增加中文编码支持网页源码显示汉字
         services.AddSingleton(HtmlEncoder.Create(UnicodeRanges.All));
@@ -198,7 +200,11 @@ public class Startup : AppStartup
 
             services.AddHttpContextAccessor();
 
-            //添加cookie授权
+            var centralizedAuthentication = App.Configuration.GetValue<string>("Security:Authentication:Mode")
+                ?.Equals("Centralized", StringComparison.OrdinalIgnoreCase) == true;
+
+            // Keep the existing cookie login for Local mode. Centralized mode
+            // additionally accepts IAM bearer tokens through the standard scheme.
             var authenticationBuilder = services.AddAuthentication(ClaimConst.Scheme).AddCookie(ClaimConst.Scheme, a =>
             {
                 a.AccessDeniedPath = "/Account/AccessDenied/";
@@ -226,8 +232,25 @@ public class Startup : AppStartup
                 });
             }
 
-            // 添加jwt授权
-            authenticationBuilder.AddJwt();
+            if (centralizedAuthentication)
+            {
+                authenticationBuilder.AddIndustrialJwt(App.Configuration);
+                services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = "ThingGetWay.Dynamic";
+                    options.DefaultChallengeScheme = "ThingGetWay.Dynamic";
+                }).AddPolicyScheme("ThingGetWay.Dynamic", "ThingGetWay cookie or IAM bearer", options =>
+                {
+                    options.ForwardDefaultSelector = context =>
+                        context.Request.Headers.ContainsKey("Authorization")
+                            ? Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme
+                            : ClaimConst.Scheme;
+                });
+            }
+            else
+            {
+                authenticationBuilder.AddJwt();
+            }
 
             services.AddAuthorization();
 #if NET8_0_OR_GREATER
@@ -339,6 +362,7 @@ public class Startup : AppStartup
             // 启用鉴权授权
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseIndustrialSecurity();
 
             // 任务调度看板
             app.UseScheduleUI(options =>
@@ -358,6 +382,30 @@ public class Startup : AppStartup
 
 
             app.MapControllers();
+            app.MapIndustrialSecurityCacheInvalidation();
+            app.MapIndustrialLocalUserManagementInfo();
+            app.MapIndustrialEmergencyValidation();
+            // V0.7 service health contract. These endpoints report the collector
+            // process/configuration only; PLC/device state is intentionally kept
+            // separate and is exposed by the device pages/telemetry APIs.
+            app.MapGet("/health/live", () => Results.Ok(new
+            {
+                status = "alive",
+                service = "thinggateway",
+                timestamp = DateTimeOffset.UtcNow
+            }));
+            app.MapGet("/health/ready", () => Results.Ok(new
+            {
+                status = "ready",
+                service = "thinggateway",
+                timestamp = DateTimeOffset.UtcNow
+            }));
+            app.MapGet("/healthz", () => Results.Ok(new
+            {
+                status = "healthy",
+                service = "thinggateway",
+                timestamp = DateTimeOffset.UtcNow
+            }));
             app.MapHubs();
 
         }

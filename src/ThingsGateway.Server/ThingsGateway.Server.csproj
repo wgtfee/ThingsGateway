@@ -6,6 +6,8 @@
 	<ItemGroup Condition=" '$(SolutionName)' != 'ThingsGatewayRelease'">
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Application\ThingsGateway.Gateway.Application.csproj" />
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Razor\ThingsGateway.Gateway.Razor.csproj" />
+		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
+		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.AspNetCore\Industrial.Security.AspNetCore.csproj" />
 	</ItemGroup>
 
 
@@ -61,6 +63,9 @@
 
 
 	<ItemGroup>
+		<Content Update="permission-manifest.json" CopyToOutputDirectory="PreserveNewest" />
+		<Content Update="appsettings.Centralized.json" CopyToOutputDirectory="PreserveNewest" />
+		<Content Update="appsettings.Shadow.json" CopyToOutputDirectory="PreserveNewest" />
 		<Content Update="wwwroot\**">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
