@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Industrial.Security.Abstractions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using SqlSugar;
 using ThingsGateway.Admin.Application;
 using ThingsGateway.DB;
@@ -17,31 +18,72 @@ namespace ThingsGateway.Server.IndustrialSecurity;
 /// the platform security contract. The existing password and role tables remain
 /// the source of truth in Local mode.
 /// </summary>
-public sealed class ThingGetWayCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+public sealed class ThingGetWayCurrentUser(IHttpContextAccessor accessor, IConfiguration configuration) : ICurrentUser
 {
     private ClaimsPrincipal Principal => accessor.HttpContext?.User ?? new ClaimsPrincipal(new ClaimsIdentity());
+    private bool CentralizedAuthentication => string.Equals(
+        configuration["Security:Authentication:Mode"],
+        "Centralized",
+        StringComparison.OrdinalIgnoreCase);
 
-    public IdentitySource Source => Enum.TryParse<IdentitySource>(Find("identity_source"), true, out var source)
-        ? source
-        : (Find("global_user_id") is not null || (Find("sub") is not null && Find(ClaimConst.UserId) is null)
-            ? IdentitySource.Platform
-            : IdentitySource.Local);
+    public IdentitySource Source
+    {
+        get
+        {
+            if (Enum.TryParse<IdentitySource>(Find("identity_source"), true, out var source))
+                return source;
 
-    public string? UserId => Source == IdentitySource.Platform
-        ? Find("global_user_id") ?? Find("sub")
-        : Find("local_user_id") ?? Find(ClaimConst.UserId) ?? Find(ClaimTypes.NameIdentifier) ?? Find(ClaimTypes.Name);
+            if (CentralizedAuthentication)
+                return IdentitySource.Platform;
 
-    public string? UserName => Find("name") ?? Find(ClaimConst.Account) ?? Find(ClaimTypes.Name) ?? UserId;
+            return Find("global_user_id") is not null || (Find("sub") is not null && Find(ClaimConst.UserId) is null)
+                ? IdentitySource.Platform
+                : IdentitySource.Local;
+        }
+    }
+
+    public string? LocalUserId => Find("local_user_id")
+        ?? (Source == IdentitySource.Local
+            ? Find(ClaimConst.UserId) ?? Find(ClaimTypes.NameIdentifier) ?? Find(ClaimTypes.Name)
+            : null);
+
+    public string? GlobalUserId => Find("global_user_id")
+        ?? (Source == IdentitySource.Platform ? Find("sub") ?? Find(ClaimTypes.NameIdentifier) : null);
+
+    public string? UserId => LocalUserId ?? GlobalUserId;
+
+    public string? UserName => Find("preferred_username")
+        ?? Find("username")
+        ?? Find("name")
+        ?? Find(ClaimConst.Account)
+        ?? Find(ClaimTypes.Name)
+        ?? UserId;
+
     public string? TenantId => Find("tenant_id") ?? Find("tenant") ?? Find(ClaimConst.TenantId);
-    public string? LocalUserId => Find("local_user_id") ?? (Source == IdentitySource.Local ? UserId : null);
-    public string? GlobalUserId => Find("global_user_id") ?? (Source == IdentitySource.Platform ? Find("sub") : null);
+
     public IReadOnlyCollection<string> Roles => Principal.Claims
-        .Where(c => c.Type == ClaimTypes.Role || string.Equals(c.Type, "role", StringComparison.OrdinalIgnoreCase))
+        .Where(c => c.Type == ClaimTypes.Role
+            || string.Equals(c.Type, "role", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(c.Type, "roles", StringComparison.OrdinalIgnoreCase))
         .Select(c => c.Value)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToArray();
-    public long PermissionVersion => long.TryParse(Find("permission_version"), out var version) ? version : 0;
-    public bool IsAuthenticated => Principal.Identity?.IsAuthenticated == true;
+
+    public long PermissionVersion => long.TryParse(
+        Find("permission_version") ?? Find("PermissionVersion"),
+        out var version) ? version : 0;
+
+    public bool IsAuthenticated
+    {
+        get
+        {
+            if (Principal.Identity?.IsAuthenticated != true) return false;
+            return Source == IdentitySource.Platform
+                ? !string.IsNullOrWhiteSpace(GlobalUserId)
+                : !string.IsNullOrWhiteSpace(LocalUserId);
+        }
+    }
 
     private string? Find(string type) => Principal.Claims.FirstOrDefault(c =>
         string.Equals(c.Type, type, StringComparison.OrdinalIgnoreCase))?.Value;
