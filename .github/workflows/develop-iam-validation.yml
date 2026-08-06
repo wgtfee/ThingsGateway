@@ -27,6 +27,32 @@ jobs:
         working-directory: platform/ThingsGateway
         run: python3 -m py_compile scripts/validate_iam_sso_live.py
 
+      - name: Diagnose PLATFORM_CI_TOKEN format
+        shell: bash
+        env:
+          PLATFORM_CI_TOKEN: ${{ secrets.PLATFORM_CI_TOKEN }}
+        run: |
+          token="${PLATFORM_CI_TOKEN}"
+          echo "PLATFORM_CI_TOKEN length: ${#token}"
+          case "${token}" in
+            github_pat_*) echo "PLATFORM_CI_TOKEN format: fine-grained PAT prefix detected" ;;
+            ghp_*) echo "PLATFORM_CI_TOKEN format: classic PAT prefix detected" ;;
+            gho_*) echo "PLATFORM_CI_TOKEN format: OAuth token prefix detected" ;;
+            ghs_*) echo "PLATFORM_CI_TOKEN format: GitHub App installation token prefix detected" ;;
+            ghu_*) echo "PLATFORM_CI_TOKEN format: GitHub App user token prefix detected" ;;
+            *) echo "PLATFORM_CI_TOKEN format: unrecognized prefix" ;;
+          esac
+          if [[ "${token}" =~ ^[[:space:]] || "${token}" =~ [[:space:]]$ ]]; then
+            echo "PLATFORM_CI_TOKEN whitespace: leading/trailing whitespace detected"
+          else
+            echo "PLATFORM_CI_TOKEN whitespace: none detected"
+          fi
+          if [[ "${token}" == \"*\" || "${token}" == \'*\' ]]; then
+            echo "PLATFORM_CI_TOKEN quotes: surrounding quotes detected"
+          else
+            echo "PLATFORM_CI_TOKEN quotes: none detected"
+          fi
+
       - name: Diagnose configured secret candidates
         shell: bash
         env:
