@@ -138,43 +138,77 @@ public sealed class ThingGetWayPermissionCodeMapper : IPermissionCodeMapper
 {
     private static readonly IReadOnlyDictionary<string, string[]> Mappings = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
-        ["THINGGATEWAY.Gateway"] = ["gateway"],
-        ["THINGGATEWAY.Gateway.Page"] = ["gateway/monitor"],
-        ["THINGGATEWAY.Gateway.View"] = ["gateway/monitor", "openApi/runtimeInfo"],
-        ["THINGGATEWAY.Gateway.Control"] = ["gateway/monitor", "openApi/control"],
-        ["THINGGATEWAY.Gateway.Manage"] = ["gateway/system", "openApi/management"],
-        ["THINGGATEWAY.Gateway.Export"] = ["gateway/monitor", "api/gatewayExport"],
-        ["THINGGATEWAY.Gateway.System"] = ["gateway/system"],
-        ["THINGGATEWAY.Gateway.Plugin"] = ["gateway/plugin"],
-        ["THINGGATEWAY.Gateway.Rules"] = ["gateway/rules"],
-        ["THINGGATEWAY.Gateway.RealAlarm"] = ["gateway/realalarm"],
-        ["THINGGATEWAY.Management.Users"] = ["admin/user"],
-        ["THINGGATEWAY.Management.Roles"] = ["admin/role"],
-        ["THINGGATEWAY.Management.Resources"] = ["admin/resource"],
-        ["THINGGATEWAY.Management.Organizations"] = ["admin/org"],
-        ["THINGGATEWAY.Management.Configuration"] = ["admin/config"],
-        ["THINGGATEWAY.Management.Dictionary"] = ["admin/dict"],
-        ["THINGGATEWAY.Management.Positions"] = ["admin/position"],
-        ["THINGGATEWAY.Management.Sessions"] = ["admin/session"],
-        ["THINGGATEWAY.Management.OperationLog"] = ["admin/oplog"],
-        ["THINGGATEWAY.Management.UserCenter"] = ["usercenter"],
-        ["THINGGATEWAY.Management.BackendLog"] = ["gateway/backendlog"],
-        ["THINGGATEWAY.Management.RpcLog"] = ["gateway/rpclog"]
+        ["thingsgateway.gateway.access"] = ["gateway"],
+        ["thingsgateway.gateway.view"] = ["gateway/monitor", "openApi/runtimeInfo"],
+        ["thingsgateway.gateway.control"] = ["gateway/monitor", "openApi/control"],
+        ["thingsgateway.gateway.manage"] = ["gateway/system", "openApi/management"],
+        ["thingsgateway.gateway.export"] = ["gateway/monitor", "api/gatewayExport"],
+        ["thingsgateway.gateway.system"] = ["gateway/system"],
+        ["thingsgateway.gateway.plugin"] = ["gateway/plugin"],
+        ["thingsgateway.gateway.rules"] = ["gateway/rules"],
+        ["thingsgateway.alarm.view"] = ["gateway/realalarm"],
+        ["thingsgateway.management.users"] = ["admin/user"],
+        ["thingsgateway.management.roles"] = ["admin/role"],
+        ["thingsgateway.management.resources"] = ["admin/resource"],
+        ["thingsgateway.management.organizations"] = ["admin/org"],
+        ["thingsgateway.management.configuration"] = ["admin/config"],
+        ["thingsgateway.management.dictionary"] = ["admin/dict"],
+        ["thingsgateway.management.positions"] = ["admin/position"],
+        ["thingsgateway.management.sessions"] = ["admin/session"],
+        ["thingsgateway.management.operation-log"] = ["admin/oplog"],
+        ["thingsgateway.management.user-center"] = ["usercenter"],
+        ["thingsgateway.management.backend-log"] = ["gateway/backendlog"],
+        ["thingsgateway.management.rpc-log"] = ["gateway/rpclog"]
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> LegacyAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["THINGGATEWAY.Gateway"] = "thingsgateway.gateway.access",
+        ["THINGGATEWAY.Gateway.Page"] = "thingsgateway.gateway.view",
+        ["THINGGATEWAY.Gateway.View"] = "thingsgateway.gateway.view",
+        ["THINGGATEWAY.Gateway.Control"] = "thingsgateway.gateway.control",
+        ["THINGGATEWAY.Gateway.Manage"] = "thingsgateway.gateway.manage",
+        ["THINGGATEWAY.Gateway.Export"] = "thingsgateway.gateway.export",
+        ["THINGGATEWAY.Gateway.System"] = "thingsgateway.gateway.system",
+        ["THINGGATEWAY.Gateway.Plugin"] = "thingsgateway.gateway.plugin",
+        ["THINGGATEWAY.Gateway.Rules"] = "thingsgateway.gateway.rules",
+        ["THINGGATEWAY.Gateway.RealAlarm"] = "thingsgateway.alarm.view",
+        ["THINGGATEWAY.Management.Users"] = "thingsgateway.management.users",
+        ["THINGGATEWAY.Management.Roles"] = "thingsgateway.management.roles",
+        ["THINGGATEWAY.Management.Resources"] = "thingsgateway.management.resources",
+        ["THINGGATEWAY.Management.Organizations"] = "thingsgateway.management.organizations",
+        ["THINGGATEWAY.Management.Configuration"] = "thingsgateway.management.configuration",
+        ["THINGGATEWAY.Management.Dictionary"] = "thingsgateway.management.dictionary",
+        ["THINGGATEWAY.Management.Positions"] = "thingsgateway.management.positions",
+        ["THINGGATEWAY.Management.Sessions"] = "thingsgateway.management.sessions",
+        ["THINGGATEWAY.Management.OperationLog"] = "thingsgateway.management.operation-log",
+        ["THINGGATEWAY.Management.UserCenter"] = "thingsgateway.management.user-center",
+        ["THINGGATEWAY.Management.BackendLog"] = "thingsgateway.management.backend-log",
+        ["THINGGATEWAY.Management.RpcLog"] = "thingsgateway.management.rpc-log"
     };
 
     internal static IEnumerable<string> KnownCodes => Mappings.Keys;
 
     public PermissionMappingResult Map(string permissionCode)
     {
-        var normalized = permissionCode?.Trim() ?? string.Empty;
+        var normalized = Normalize(permissionCode);
         if (normalized == "*") return new(normalized, true, ["*"]);
         return Mappings.TryGetValue(normalized, out var local)
-            ? new(normalized, true, local, "ThingGetWay route/controller permission")
-            : new(normalized, false, [], "Unknown ThingGetWay permission");
+            ? new(normalized, true, local, "ThingsGateway route/controller permission")
+            : new(normalized, false, [], "Unknown ThingsGateway permission");
     }
 
     internal static IReadOnlyCollection<string> MapToLocal(string permissionCode)
-        => Mappings.TryGetValue(permissionCode?.Trim() ?? string.Empty, out var local) ? local : [permissionCode];
+    {
+        var normalized = Normalize(permissionCode);
+        return Mappings.TryGetValue(normalized, out var local) ? local : [permissionCode];
+    }
+
+    private static string Normalize(string? permissionCode)
+    {
+        var value = permissionCode?.Trim() ?? string.Empty;
+        return LegacyAliases.TryGetValue(value, out var canonical) ? canonical : value.ToLowerInvariant();
+    }
 }
 
 public sealed class ThingGetWayLocalPermissionProvider(
@@ -208,7 +242,7 @@ public sealed class ThingGetWayLocalPermissionProvider(
 /// <summary>Shadow mapping for centralized IAM identities; it never stores a password.</summary>
 public sealed class ThingGetWayShadowUserResolver(ISqlSugarClient db) : IShadowUserResolver
 {
-    private const string SystemCode = "THINGGATEWAY";
+    private const string SystemCode = IndustrialSystemCodes.ThingsGateway;
 
     public Task<ShadowUserSnapshot?> ResolveAsync(string iamUserId, CancellationToken cancellationToken = default)
         => Task.FromResult(db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId) is { } row ? ToSnapshot(row) : null);
