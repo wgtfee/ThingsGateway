@@ -45,8 +45,17 @@ public class AuthService : IAuthService
         _verificatInfoService = verificatInfoService;
     }
 
+    /// <summary>
+    /// 登录
+    /// </summary>
+    /// <param name="input">登录参数</param>
+    /// <param name="isCookie">cookie方式登录</param>
+    /// <returns>登录输出</returns>
     public async Task<LoginOutput> LoginAsync(LoginInput input, bool isCookie = true)
     {
+        // Shadow deliberately keeps the native password flow for side-by-side verification.
+        // Once authorization is fully Centralized, however, local credentials must no longer
+        // mint either a browser cookie or a local API token.
         if (string.Equals(
                 App.Configuration["Security:Authorization:Mode"],
                 "Centralized",
@@ -83,11 +92,18 @@ public class AuthService : IAuthService
             throw Oops.Bah(_localizer["UserNull", input.Account]);
 
         if (userInfo.Password != password)
+        {
             LoginError(appConfig.LoginPolicy, input.Account);
-
-        return await ExecLogin(appConfig.LoginPolicy, input, userInfo, isCookie).ConfigureAwait(false);
+        }
+        var result = await ExecLogin(appConfig.LoginPolicy, input, userInfo, isCookie).ConfigureAwait(false);
+        return result;
     }
 
+    /// <summary>
+    /// 使用已经由可信上游身份系统验证并显式绑定的本地用户执行原生 Cookie 登录。
+    /// 该入口不验证本地密码，但仍复用原生登录生命周期，包括账号/组织/模块状态校验、
+    /// 在线会话、单用户登录、登录时间更新以及原始 Claims 生成。
+    /// </summary>
     public async Task<LoginOutput> LoginTrustedLocalUserAsync(
         long localUserId,
         IReadOnlyCollection<Claim>? additionalClaims = null,
@@ -122,6 +138,9 @@ public class AuthService : IAuthService
             maxSessionMinutes).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 注销当前用户
+    /// </summary>
     public async Task LoginOutAsync()
     {
         if (UserManager.VerificatId == 0)
@@ -145,12 +164,10 @@ public class AuthService : IAuthService
             };
             RemoveTokenFromCache(loginEvent);
         }
-
         await _appService.LoginOutAsync().ConfigureAwait(false);
 
-        // The IAM session cookie was originally set through the same Gateway host. Removing
-        // it from the native logout response makes the existing Blazor logout UI a real SSO
-        // logout without teaching the UI about IAM internals.
+        // IAM and ThingsGateway share the Gateway host in browser deployments. Removing the
+        // platform cookie here makes the existing native logout UI terminate both sessions.
         if (platformSession && httpContext is not null)
         {
             var iamCookieName = App.Configuration["IndustrialIamWeb:IamSessionCookieName"]?.Trim();
@@ -160,6 +177,13 @@ public class AuthService : IAuthService
         }
     }
 
+    #region 方法
+
+    /// <summary>
+    /// 登录之前执行的方法
+    /// </summary>
+    /// <param name="appConfig">配置</param>
+    /// <param name="input">input</param>
     private async Task BeforeLoginAsync(AppConfig appConfig, LoginInput input)
     {
         var tenantEnable = App.GetOptions<TenantOptions>()?.Enable ?? false;
@@ -174,7 +198,10 @@ public class AuthService : IAuthService
                 var domain = origin.Split("//")[1].Split(".")[0];
                 var tenantList = await _sysOrgService.GetTenantListAsync().ConfigureAwait(false);
                 var tenant = tenantList.FirstOrDefault(x => x.Code.Equals(domain, StringComparison.OrdinalIgnoreCase));
-                input.TenantId = tenant?.Id ?? RoleConst.DefaultTenantId;
+                if (tenant != null)
+                    input.TenantId = tenant.Id;
+                else
+                    input.TenantId = RoleConst.DefaultTenantId;
             }
         }
         else
@@ -184,6 +211,7 @@ public class AuthService : IAuthService
 
         var key = CacheConst.Cache_LoginErrorCount + input.Account + input.TenantId;
         var errorCountCache = App.CacheService.Get<int>(key);
+
         if (errorCountCache >= appConfig.LoginPolicy.ErrorCount)
         {
             App.CacheService.SetExpire(key, TimeSpan.FromMinutes(appConfig.LoginPolicy.ErrorLockTime));
@@ -191,6 +219,16 @@ public class AuthService : IAuthService
         }
     }
 
+    /// <summary>
+    /// 执行登录
+    /// </summary>
+    /// <param name="loginPolicy">登录策略</param>
+    /// <param name="input">用户登录参数</param>
+    /// <param name="sysUser">用户信息</param>
+    /// <param name="isCookie">cookie方式登录</param>
+    /// <param name="additionalClaims">可信服务端调用方附加的平台身份 Claim。</param>
+    /// <param name="maxSessionMinutes">可选的可信上游令牌寿命上限。</param>
+    /// <returns>登录输出结果</returns>
     private async Task<LoginOutput> ExecLogin(
         LoginPolicy loginPolicy,
         LoginInput input,
@@ -208,29 +246,44 @@ public class AuthService : IAuthService
             : loginPolicy.VerificatExpireTime;
         string accessToken = string.Empty;
         string refreshToken = string.Empty;
-
         if (!isCookie)
         {
+            #region Token
+
             accessToken = JWTEncryption.Encrypt(new Dictionary<string, object>
+        {
             {
-                { ClaimConst.UserId, sysUser.Id },
-                { ClaimConst.Account, sysUser.Account },
-                { ClaimConst.SuperAdmin, sysUser.RoleIdList.Contains(RoleConst.SuperAdminRoleId) },
-                { ClaimConst.VerificatId, verificatId },
-                { ClaimConst.OrgId, sysUser.OrgId },
-                { ClaimConst.TenantId, input.TenantId }
-            });
+                ClaimConst.UserId, sysUser.Id
+            },
+            {
+                ClaimConst.Account, sysUser.Account
+            },
+            {
+                ClaimConst.SuperAdmin, sysUser.RoleIdList.Contains(RoleConst.SuperAdminRoleId)
+            },
+                                {
+                ClaimConst.VerificatId, verificatId
+            },
+            {
+                ClaimConst.OrgId, sysUser.OrgId
+            },
+             {
+                ClaimConst.TenantId, input.TenantId
+            }
+        });
             refreshToken = JWTEncryption.GenerateRefreshToken(accessToken, expire * 2);
             App.HttpContext?.SigninToSwagger(accessToken);
             App.HttpContext?.SetTokensOfResponseHeaders(accessToken, refreshToken);
+
+            #endregion Token
         }
         else
         {
             if (sysUser.ModuleList.Count == 0)
                 throw Oops.Bah(_localizer["UserNoModule"]);
             var org = await _sysOrgService.GetSysOrgByIdAsync(sysUser.OrgId).ConfigureAwait(false);
-            if (!org.Status)
-                throw Oops.Bah(_localizer["OrgDisable"]);
+            if (!org.Status) throw Oops.Bah(_localizer["OrgDisable"]);
+            #region cookie
 
             var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
             identity.AddClaim(new Claim(ClaimConst.VerificatId, verificatId.ToString()));
@@ -250,8 +303,9 @@ public class AuthService : IAuthService
             }
 
             await _appService.LoginAsync(identity, expire).ConfigureAwait(false);
-        }
 
+            #endregion cookie
+        }
         var logingEvent = new LoginEvent
         {
             Ip = _appService.RemoteIpAddress,
@@ -273,6 +327,11 @@ public class AuthService : IAuthService
         };
     }
 
+    /// <summary>
+    /// 登录错误反馈
+    /// </summary>
+    /// <param name="loginPolicy">登录策略</param>
+    /// <param name="userName">用户名称</param>
     private void LoginError(LoginPolicy loginPolicy, string userName)
     {
         var key = CacheConst.Cache_LoginErrorCount + userName;
@@ -282,9 +341,19 @@ public class AuthService : IAuthService
         throw Oops.Bah(_localizer["AuthErrorMax", loginPolicy.ErrorCount, loginPolicy.ErrorLockTime, errorCountCache]);
     }
 
+    /// <summary>
+    /// 从cache删除用户verificat
+    /// </summary>
+    /// <param name="loginEvent">登录事件参数</param>
     private void RemoveTokenFromCache(LoginEvent loginEvent)
-        => _verificatInfoService.Delete(loginEvent.VerificatId);
+    {
+        _verificatInfoService.Delete(loginEvent.VerificatId);
+    }
 
+    /// <summary>
+    /// 单用户登录通知用户下线
+    /// </summary>
+    /// <param name="userId">用户Id</param>
     private async Task SingleLogin(long userId)
     {
         var clientIds = _verificatInfoService.GetClientIdListByUserId(userId);
@@ -295,16 +364,32 @@ public class AuthService : IAuthService
         }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 登录事件
+    /// </summary>
+    /// <param name="loginEvent"></param>
+    /// <returns></returns>
     private async Task UpdateUser(LoginEvent loginEvent)
     {
         var sysUser = loginEvent.SysUser;
+
+        #region 登录/密码策略
+
         var key = CacheConst.Cache_LoginErrorCount + sysUser.Account;
         App.CacheService.Remove(key);
+
+        var userToken = _verificatInfoService.GetOne(loginEvent.VerificatId);
+
+        #endregion 登录/密码策略
+
+        #region 重新赋值属性,设置本次登录信息为最新的信息
 
         sysUser.LastLoginIp = sysUser.LatestLoginIp;
         sysUser.LastLoginTime = sysUser.LatestLoginTime;
         sysUser.LatestLoginIp = loginEvent.Ip;
         sysUser.LatestLoginTime = loginEvent.DateTime;
+
+        #endregion 重新赋值属性,设置本次登录信息为最新的信息
 
         using var db = DbContext.GetDB<SysUser>();
         if (await db.UpdateableT(sysUser).UpdateColumns(it => new
@@ -314,11 +399,14 @@ public class AuthService : IAuthService
             it.LatestLoginIp,
             it.LatestLoginTime,
         }).ExecuteCommandAsync().ConfigureAwait(false) > 0)
-        {
             App.CacheService.HashAdd(CacheConst.Cache_SysUser, sysUser.Id.ToString(), sysUser);
-        }
     }
 
+    /// <summary>
+    /// 写入用户verificat到cache
+    /// </summary>
+    /// <param name="loginPolicy">登录策略</param>
+    /// <param name="loginEvent">登录事件参数</param>
     private async Task WriteTokenToCache(LoginPolicy loginPolicy, LoginEvent loginEvent)
     {
         var tokenTimeout = loginEvent.DateTime.AddMinutes(loginEvent.Expire);
@@ -333,18 +421,48 @@ public class AuthService : IAuthService
             LoginTime = loginEvent.DateTime
         };
         if (loginPolicy.SingleOpen)
+        {
             await SingleLogin(loginEvent.SysUser.Id).ConfigureAwait(false);
+        }
 
         _verificatInfoService.Add(verificatInfo);
     }
+
+    #endregion 方法
 }
 
+/// <summary>
+/// 登录事件参数
+/// </summary>
 public class LoginEvent
 {
+    /// <summary>
+    /// 时间
+    /// </summary>
     public DateTime DateTime = DateTime.Now;
+
+    /// <summary>
+    /// 过期时间
+    /// </summary>
     public int Expire { get; set; }
+
+    /// <summary>
+    /// Ip地址
+    /// </summary>
     public string? Ip { get; set; }
+
+    /// <summary>
+    /// 用户信息
+    /// </summary>
     public SysUser SysUser { get; set; }
+
+    /// <summary>
+    /// VerificatId
+    /// </summary>
     public long VerificatId { get; set; }
+
+    /// <summary>
+    /// 登录设备
+    /// </summary>
     public string Device { get; set; }
 }
