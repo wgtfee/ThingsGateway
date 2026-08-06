@@ -1,0 +1,49 @@
+name: develop-iam-validation
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ThingsGateway
+        uses: actions/checkout@v4
+        with:
+          path: platform/ThingsGateway
+
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore ThingsGateway server
+        working-directory: platform/ThingsGateway
+        run: dotnet restore src/ThingsGateway.Server/ThingsGateway.Server.csproj -p:EnableProPackages=false
+
+      - name: Build ThingsGateway server
+        working-directory: platform/ThingsGateway
+        run: dotnet build src/ThingsGateway.Server/ThingsGateway.Server.csproj -f net8.0 --configuration Release --no-restore -p:EnableProPackages=false
