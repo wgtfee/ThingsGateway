@@ -90,7 +90,7 @@ jobs:
         with:
           repository: wgtfee/Industrial.Security.Abstractions
           ref: master
-          path: platform/ThingsGateway/Industrial.Security/src/Industrial.Security.Abstractions
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
@@ -99,7 +99,7 @@ jobs:
         with:
           repository: wgtfee/Industrial.Security.AspNetCore
           ref: master
-          path: platform/ThingsGateway/Industrial.Security/src/Industrial.Security.AspNetCore
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
@@ -108,9 +108,13 @@ jobs:
         with:
           repository: wgtfee/Industrial.Health.Abstractions
           ref: master
-          path: platform/ThingsGateway/Industrial.Health/src/Industrial.Health.Abstractions
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
+
+      - name: Prepare local NuGet source directory
+        shell: bash
+        run: mkdir -p platform/nupkgs
 
       - uses: actions/setup-dotnet@v4
         with:
