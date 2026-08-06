@@ -147,7 +147,7 @@ public class RuntimeInfoController : ControllerBase, IRpcServer
     public SqlSugarPagedList<PluginInfo> GetPluginInfos([FromQuery][TouchSocket.WebApi.FromBody] PluginInfoPageInput input)
     {
         //指定关键词搜索为插件FullName
-        return (GlobalData.PluginService.GetPluginList()).WhereIF(!input.Name.IsNullOrWhiteSpace(), a => a.Name.Contains(input.Name))
+        return (GlobalData.PluginService.GetPluginList()).WhereIF(!input.Name.IsNullOrWhiteSpace(), a => a.Name == input.Name)
                 .ToPagedList(input);
     }
 }
