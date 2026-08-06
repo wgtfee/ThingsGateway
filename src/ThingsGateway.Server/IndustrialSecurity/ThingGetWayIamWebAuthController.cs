@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,6 +7,7 @@ using System.Text.Json;
 using Industrial.Security.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using ThingsGateway.Admin.Application;
@@ -51,11 +53,12 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("signin")]
-    public IActionResult SignInPage()
+    public IActionResult SignInPage([FromQuery] string? returnUrl = null)
     {
         if (!IsEnabled()) return NotFound();
 
-        var loginPath = ExternalBasePath() + "/auth/iam/login";
+        var safeReturnUrl = NormalizeReturnUrl(returnUrl);
+        var loginPath = ExternalBasePath() + "/auth/iam/login?returnUrl=" + Uri.EscapeDataString(safeReturnUrl);
         var html = $$"""
 <!doctype html>
 <html lang="zh-CN">
@@ -68,7 +71,8 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
     .card{width:min(380px,calc(100vw - 40px));background:#fff;border-radius:12px;padding:28px;box-shadow:0 12px 36px rgba(0,0,0,.10)}
     h2{margin:0 0 20px;font-size:20px}.hint{color:#667085;font-size:13px;margin-bottom:18px}
     label{display:block;margin:12px 0 6px;font-size:13px}input{box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid #d0d5dd;border-radius:7px}
-    button{width:100%;margin-top:20px;padding:11px;border:0;border-radius:7px;background:#1677ff;color:#fff;font-weight:600;cursor:pointer}
+    button,.continue{box-sizing:border-box;width:100%;margin-top:14px;padding:11px;border:0;border-radius:7px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;display:block}
+    button{background:#1677ff;color:#fff}.continue{background:#eef4ff;color:#175cd3}.divider{text-align:center;color:#98a2b3;font-size:12px;margin-top:14px}
     #error{min-height:20px;margin-top:12px;color:#d92d20;font-size:13px}
   </style>
 </head>
@@ -76,6 +80,8 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
   <main class="card">
     <h2>ThingsGateway 统一身份认证</h2>
     <div class="hint">使用平台 IAM 账号登录。本页不会把 IAM 密码发送给 ThingsGateway。</div>
+    <a class="continue" href="{{loginPath}}">已有 IAM 会话，直接继续</a>
+    <div class="divider">或重新验证平台账号</div>
     <form id="loginForm">
       <label for="userName">IAM 账号</label>
       <input id="userName" autocomplete="username" required />
@@ -177,15 +183,15 @@ form.addEventListener('submit', async (event) => {
 
         DeletePkceCookie();
 
-        var accessToken = await ExchangeCodeAsync(code, pkce.Verifier, cancellationToken);
-        if (string.IsNullOrWhiteSpace(accessToken))
+        var token = await ExchangeCodeAsync(code, pkce.Verifier, cancellationToken);
+        if (token is null || string.IsNullOrWhiteSpace(token.AccessToken))
             return SsoError("IAM 授权码交换失败。");
 
-        var me = await GetIamUserAsync(accessToken, cancellationToken);
+        var me = await GetIamUserAsync(token.AccessToken, cancellationToken);
         if (me is null || string.IsNullOrWhiteSpace(me.Id))
             return SsoError("无法读取 IAM 用户身份。");
 
-        if (!await HasSystemAccessAsync(accessToken, cancellationToken))
+        if (!await HasSystemAccessAsync(token.AccessToken, cancellationToken))
             return StatusCode(StatusCodes.Status403Forbidden, new
             {
                 error = "当前 IAM 用户没有 THINGSGATEWAY SystemAccess。"
@@ -203,12 +209,16 @@ form.addEventListener('submit', async (event) => {
         {
             new(IndustrialClaimTypes.GlobalUserId, me.Id),
             new(IndustrialClaimTypes.IdentitySource, IdentitySource.Platform.ToString()),
-            new(IndustrialClaimTypes.ProtectedPlatformAccessToken, accessToken)
+            new(IndustrialClaimTypes.ProtectedPlatformAccessToken, token.AccessToken)
         };
         if (me.PermissionVersion > 0)
             platformClaims.Add(new Claim(IndustrialClaimTypes.PermissionVersion, me.PermissionVersion.ToString()));
 
-        await _auth.LoginTrustedLocalUserAsync(localUserId, platformClaims);
+        // Keep the native ThingsGateway business session strictly inside the IAM access-token
+        // lifetime. A small safety window prevents a valid local cookie from outliving the
+        // platform token used for SystemAccess/permission rechecks.
+        var maxSessionMinutes = Math.Max(1, (Math.Max(60, token.ExpiresIn) - 120) / 60);
+        await _auth.LoginTrustedLocalUserAsync(localUserId, platformClaims, maxSessionMinutes);
         return Redirect(pkce.ReturnUrl);
     }
 
@@ -238,7 +248,10 @@ fetch('/account/logout',{method:'POST',credentials:'include'}).catch(()=>{}).fin
         redirectUri = RedirectUri()
     });
 
-    private async Task<string?> ExchangeCodeAsync(string code, string verifier, CancellationToken cancellationToken)
+    private async Task<TokenExchangeResult?> ExchangeCodeAsync(
+        string code,
+        string verifier,
+        CancellationToken cancellationToken)
     {
         var http = _clients.CreateClient();
         using var response = await http.PostAsync(
@@ -253,8 +266,16 @@ fetch('/account/logout',{method:'POST',credentials:'include'}).catch(()=>{}).fin
             }),
             cancellationToken);
         if (!response.IsSuccessStatusCode) return null;
+
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        return json.RootElement.TryGetProperty("access_token", out var token) ? token.GetString() : null;
+        if (!json.RootElement.TryGetProperty("access_token", out var tokenElement)
+            || string.IsNullOrWhiteSpace(tokenElement.GetString()))
+            return null;
+        var expiresIn = json.RootElement.TryGetProperty("expires_in", out var expiresElement)
+            && expiresElement.TryGetInt32(out var parsed)
+            ? parsed
+            : 3600;
+        return new TokenExchangeResult(tokenElement.GetString()!, expiresIn);
     }
 
     private async Task<IamMe?> GetIamUserAsync(string accessToken, CancellationToken cancellationToken)
@@ -333,6 +354,7 @@ fetch('/account/logout',{method:'POST',credentials:'include'}).catch(()=>{}).fin
     private static string Base64Url(byte[] bytes)
         => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
+    private sealed record TokenExchangeResult(string AccessToken, int ExpiresIn);
     private sealed record PkcePayload(string State, string Verifier, string ReturnUrl, DateTimeOffset CreatedAt);
     private sealed record IamMe(string Id, string UserName, string DisplayName, string? Tenant, long PermissionVersion);
     private sealed record SystemAccessResponse(bool Allowed);
