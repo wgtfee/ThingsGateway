@@ -55,19 +55,18 @@ public class AuthService : IAuthService
     {
         var appConfig = await _configService.GetAppConfigAsync().ConfigureAwait(false);
 
-        //判断是否开启web访问
         if (!appConfig.WebsitePolicy.WebStatus
-            && input.Account != RoleConst.SuperAdmin)//如果禁用了网站并且不是超级管理员
+            && input.Account != RoleConst.SuperAdmin)
         {
             throw Oops.Bah(appConfig.WebsitePolicy.CloseTip);
         }
 
         string? password = input.Password;
-        if (isCookie) //openApi登录不再需要解密
+        if (isCookie)
         {
             try
             {
-                password = DESEncryption.Decrypt(input.Password);//解密
+                password = DESEncryption.Decrypt(input.Password);
             }
             catch (Exception)
             {
@@ -75,17 +74,17 @@ public class AuthService : IAuthService
             }
         }
 
-        await BeforeLoginAsync(appConfig, input).ConfigureAwait(false);//登录前校验
+        await BeforeLoginAsync(appConfig, input).ConfigureAwait(false);
 
-        var userInfo = await _sysUserService.GetUserByAccountAsync(input.Account, input.TenantId).ConfigureAwait(false);//获取用户信息
+        var userInfo = await _sysUserService.GetUserByAccountAsync(input.Account, input.TenantId).ConfigureAwait(false);
         if (userInfo == null)
-            throw Oops.Bah(_localizer["UserNull", input.Account]);//用户不存在
+            throw Oops.Bah(_localizer["UserNull", input.Account]);
 
         if (userInfo.Password != password)
         {
-            LoginError(appConfig.LoginPolicy, input.Account);//登录错误操作
+            LoginError(appConfig.LoginPolicy, input.Account);
         }
-        var result = await ExecLogin(appConfig.LoginPolicy, input, userInfo, isCookie).ConfigureAwait(false);// 执行登录
+        var result = await ExecLogin(appConfig.LoginPolicy, input, userInfo, isCookie).ConfigureAwait(false);
         return result;
     }
 
@@ -96,7 +95,8 @@ public class AuthService : IAuthService
     /// </summary>
     public async Task<LoginOutput> LoginTrustedLocalUserAsync(
         long localUserId,
-        IReadOnlyCollection<Claim>? additionalClaims = null)
+        IReadOnlyCollection<Claim>? additionalClaims = null,
+        int? maxSessionMinutes = null)
     {
         if (localUserId <= 0)
             throw new ArgumentOutOfRangeException(nameof(localUserId));
@@ -122,7 +122,8 @@ public class AuthService : IAuthService
             input,
             userInfo,
             isCookie: true,
-            additionalClaims).ConfigureAwait(false);
+            additionalClaims,
+            maxSessionMinutes).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -133,7 +134,6 @@ public class AuthService : IAuthService
         if (UserManager.VerificatId == 0)
             return;
         var verificatId = UserManager.VerificatId;
-        //获取用户信息
         var userinfo = await _sysUserService.GetUserByAccountAsync(UserManager.UserAccount, UserManager.TenantId).ConfigureAwait(false);
         if (userinfo != null)
         {
@@ -143,7 +143,7 @@ public class AuthService : IAuthService
                 SysUser = userinfo,
                 VerificatId = verificatId
             };
-            RemoveTokenFromCache(loginEvent);//移除verificat
+            RemoveTokenFromCache(loginEvent);
         }
         await _appService.LoginOutAsync().ConfigureAwait(false);
     }
@@ -161,19 +161,14 @@ public class AuthService : IAuthService
 
         if (tenantEnable)
         {
-            //如果租户ID为空表示用域名登录
             if (input.TenantId == null)
             {
-                //获取域名
                 var origin = App.HttpContext.Request.Headers["Origin"].ToString();
-                // 如果Origin头不存在，可以尝试使用Referer头作为备选
                 if (string.IsNullOrEmpty(origin))
                     origin = App.HttpContext.Request.Headers["Referer"].ToString();
-                //根据域名获取二级域名
                 var domain = origin.Split("//")[1].Split(".")[0];
-                //根据二级域名获取租户
                 var tenantList = await _sysOrgService.GetTenantListAsync().ConfigureAwait(false);
-                var tenant = tenantList.FirstOrDefault(x => x.Code.Equals(domain, StringComparison.OrdinalIgnoreCase));//获取租户默认是机构编码
+                var tenant = tenantList.FirstOrDefault(x => x.Code.Equals(domain, StringComparison.OrdinalIgnoreCase));
                 if (tenant != null)
                     input.TenantId = tenant.Id;
                 else
@@ -185,12 +180,12 @@ public class AuthService : IAuthService
             input.TenantId = RoleConst.DefaultTenantId;
         }
 
-        var key = CacheConst.Cache_LoginErrorCount + input.Account + input.TenantId;//获取登录错误次数Key值
-        var errorCountCache = App.CacheService.Get<int>(key);//获取登录错误次数
+        var key = CacheConst.Cache_LoginErrorCount + input.Account + input.TenantId;
+        var errorCountCache = App.CacheService.Get<int>(key);
 
         if (errorCountCache >= appConfig.LoginPolicy.ErrorCount)
         {
-            App.CacheService.SetExpire(key, TimeSpan.FromMinutes(appConfig.LoginPolicy.ErrorLockTime));//设置缓存
+            App.CacheService.SetExpire(key, TimeSpan.FromMinutes(appConfig.LoginPolicy.ErrorLockTime));
             throw Oops.Bah(_localizer["PasswordError", appConfig.LoginPolicy.ErrorLockTime]);
         }
     }
@@ -203,26 +198,29 @@ public class AuthService : IAuthService
     /// <param name="sysUser">用户信息</param>
     /// <param name="isCookie">cookie方式登录</param>
     /// <param name="additionalClaims">可信服务端调用方附加的平台身份 Claim。</param>
+    /// <param name="maxSessionMinutes">可选的可信上游令牌寿命上限。</param>
     /// <returns>登录输出结果</returns>
     private async Task<LoginOutput> ExecLogin(
         LoginPolicy loginPolicy,
         LoginInput input,
         SysUser sysUser,
         bool isCookie = true,
-        IReadOnlyCollection<Claim>? additionalClaims = null)
+        IReadOnlyCollection<Claim>? additionalClaims = null,
+        int? maxSessionMinutes = null)
     {
         if (sysUser.Status == false)
-            throw Oops.Bah(_localizer["UserDisable", sysUser.Account]);//账号已停用
+            throw Oops.Bah(_localizer["UserDisable", sysUser.Account]);
 
         var verificatId = CommonUtils.GetSingleId();
-        var expire = loginPolicy.VerificatExpireTime;
+        var expire = maxSessionMinutes is > 0
+            ? Math.Min(loginPolicy.VerificatExpireTime, maxSessionMinutes.Value)
+            : loginPolicy.VerificatExpireTime;
         string accessToken = string.Empty;
         string refreshToken = string.Empty;
         if (!isCookie)
         {
             #region Token
 
-            //生成Token
             accessToken = JWTEncryption.Encrypt(new Dictionary<string, object>
         {
             {
@@ -244,11 +242,8 @@ public class AuthService : IAuthService
                 ClaimConst.TenantId, input.TenantId
             }
         });
-            // 生成刷新Token令牌
             refreshToken = JWTEncryption.GenerateRefreshToken(accessToken, expire * 2);
-            // 设置Swagger自动登录
             App.HttpContext?.SigninToSwagger(accessToken);
-            // 设置响应报文头
             App.HttpContext?.SetTokensOfResponseHeaders(accessToken, refreshToken);
 
             #endregion Token
@@ -256,9 +251,9 @@ public class AuthService : IAuthService
         else
         {
             if (sysUser.ModuleList.Count == 0)
-                throw Oops.Bah(_localizer["UserNoModule"]);//未分配模块
-            var org = await _sysOrgService.GetSysOrgByIdAsync(sysUser.OrgId).ConfigureAwait(false);//获取机构
-            if (!org.Status) throw Oops.Bah(_localizer["OrgDisable"]);//机构冻结
+                throw Oops.Bah(_localizer["UserNoModule"]);
+            var org = await _sysOrgService.GetSysOrgByIdAsync(sysUser.OrgId).ConfigureAwait(false);
+            if (!org.Status) throw Oops.Bah(_localizer["OrgDisable"]);
             #region cookie
 
             var identity = new ClaimsIdentity(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -282,7 +277,6 @@ public class AuthService : IAuthService
 
             #endregion cookie
         }
-        //登录事件参数
         var logingEvent = new LoginEvent
         {
             Ip = _appService.RemoteIpAddress,
@@ -291,10 +285,9 @@ public class AuthService : IAuthService
             SysUser = sysUser,
             VerificatId = verificatId
         };
-        await WriteTokenToCache(loginPolicy, logingEvent).ConfigureAwait(false);//写入verificat到cache
+        await WriteTokenToCache(loginPolicy, logingEvent).ConfigureAwait(false);
         await UpdateUser(logingEvent).ConfigureAwait(false);
 
-        //返回结果
         return new LoginOutput
         {
             VerificatId = verificatId,
@@ -312,11 +305,11 @@ public class AuthService : IAuthService
     /// <param name="userName">用户名称</param>
     private void LoginError(LoginPolicy loginPolicy, string userName)
     {
-        var key = CacheConst.Cache_LoginErrorCount + userName;//获取登录错误次数Key值
-        App.CacheService.Increment(key, 1);// 登录错误次数+1
-        App.CacheService.SetExpire(key, TimeSpan.FromMinutes(loginPolicy.ErrorResetTime));//设置过期时间
-        var errorCountCache = App.CacheService.Get<int>(key);//获取登录错误次数
-        throw Oops.Bah(_localizer["AuthErrorMax", loginPolicy.ErrorCount, loginPolicy.ErrorLockTime, errorCountCache]);//账号密码错误
+        var key = CacheConst.Cache_LoginErrorCount + userName;
+        App.CacheService.Increment(key, 1);
+        App.CacheService.SetExpire(key, TimeSpan.FromMinutes(loginPolicy.ErrorResetTime));
+        var errorCountCache = App.CacheService.Get<int>(key);
+        throw Oops.Bah(_localizer["AuthErrorMax", loginPolicy.ErrorCount, loginPolicy.ErrorLockTime, errorCountCache]);
     }
 
     /// <summary>
@@ -325,7 +318,6 @@ public class AuthService : IAuthService
     /// <param name="loginEvent">登录事件参数</param>
     private void RemoveTokenFromCache(LoginEvent loginEvent)
     {
-        //更新verificat列表
         _verificatInfoService.Delete(loginEvent.VerificatId);
     }
 
@@ -354,10 +346,9 @@ public class AuthService : IAuthService
 
         #region 登录/密码策略
 
-        var key = CacheConst.Cache_LoginErrorCount + sysUser.Account;//移除登录错误次数Key值
-        App.CacheService.Remove(key);//移除登录错误次数
+        var key = CacheConst.Cache_LoginErrorCount + sysUser.Account;
+        App.CacheService.Remove(key);
 
-        //获取用户verificat列表
         var userToken = _verificatInfoService.GetOne(loginEvent.VerificatId);
 
         #endregion 登录/密码策略
@@ -372,7 +363,6 @@ public class AuthService : IAuthService
         #endregion 重新赋值属性,设置本次登录信息为最新的信息
 
         using var db = DbContext.GetDB<SysUser>();
-        //更新用户登录信息
         if (await db.UpdateableT(sysUser).UpdateColumns(it => new
         {
             it.LastLoginIp,
@@ -380,7 +370,7 @@ public class AuthService : IAuthService
             it.LatestLoginIp,
             it.LatestLoginTime,
         }).ExecuteCommandAsync().ConfigureAwait(false) > 0)
-            App.CacheService.HashAdd(CacheConst.Cache_SysUser, sysUser.Id.ToString(), sysUser);//更新Cache信息
+            App.CacheService.HashAdd(CacheConst.Cache_SysUser, sysUser.Id.ToString(), sysUser);
     }
 
     /// <summary>
@@ -390,9 +380,7 @@ public class AuthService : IAuthService
     /// <param name="loginEvent">登录事件参数</param>
     private async Task WriteTokenToCache(LoginPolicy loginPolicy, LoginEvent loginEvent)
     {
-        //获取verificat列表
         var tokenTimeout = loginEvent.DateTime.AddMinutes(loginEvent.Expire);
-        //生成verificat信息
         var verificatInfo = new VerificatInfo
         {
             Device = loginEvent.Device ?? "Unknown",
@@ -403,13 +391,11 @@ public class AuthService : IAuthService
             LoginIp = loginEvent.Ip,
             LoginTime = loginEvent.DateTime
         };
-        //判断是否单用户登录
         if (loginPolicy.SingleOpen)
         {
-            await SingleLogin(loginEvent.SysUser.Id).ConfigureAwait(false);//单用户登录方法
+            await SingleLogin(loginEvent.SysUser.Id).ConfigureAwait(false);
         }
 
-        //添加到verificat列表
         _verificatInfoService.Add(verificatInfo);
     }
 
