@@ -4,3 +4,4 @@ Multi-protocol validation trigger: 2026-08-06T14:50Z
 Build-path validation trigger: 2026-08-06T15:31Z
 Furion-reference validation trigger: 2026-08-06T15:42Z
 Runner-retry validation trigger: 2026-08-06T15:45Z
+Platform-integrity validation trigger: 2026-08-06T15:57Z
