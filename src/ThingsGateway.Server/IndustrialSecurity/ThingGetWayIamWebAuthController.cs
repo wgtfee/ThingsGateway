@@ -246,7 +246,10 @@ fetch('/account/logout',{method:'POST',credentials:'include'}).catch(()=>{}).fin
     public IActionResult Status() => Ok(new
     {
         enabled = IsEnabled(),
-        mode = _configuration["Security:Authentication:Mode"] ?? "Local",
+        authenticationMode = _configuration["Security:Authentication:Mode"] ?? "Local",
+        authorizationMode = _configuration["Security:Authorization:Mode"] ?? "Local",
+        shadowCentralAuthorization = _configuration.GetValue<bool>("Security:Central:ShadowCentralAuthorization"),
+        requireSystemAccess = _configuration.GetValue<bool>("Security:Central:RequireSystemAccess"),
         clientId = ClientId(),
         redirectUri = RedirectUri()
     });
