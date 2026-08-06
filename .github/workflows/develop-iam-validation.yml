@@ -15,6 +15,10 @@ jobs:
         with:
           path: platform/ThingsGateway
 
+      - name: Validate IAM SSO contracts
+        working-directory: platform/ThingsGateway
+        run: python3 scripts/validate_iam_sso.py
+
       - name: Checkout Security.Abstractions
         uses: actions/checkout@v4
         with:
