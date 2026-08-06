@@ -32,9 +32,11 @@ public interface IAuthService
     /// </summary>
     /// <param name="localUserId">已显式绑定的 ThingsGateway 本地用户 ID。</param>
     /// <param name="additionalClaims">仅由可信服务端调用方附加的平台身份 Claim。</param>
+    /// <param name="maxSessionMinutes">可选的上游令牌剩余寿命上限；原生 Cookie 不得超过该值。</param>
     Task<LoginOutput> LoginTrustedLocalUserAsync(
         long localUserId,
-        IReadOnlyCollection<Claim>? additionalClaims = null);
+        IReadOnlyCollection<Claim>? additionalClaims = null,
+        int? maxSessionMinutes = null);
 
     /// <summary>
     /// 注销当前用户
