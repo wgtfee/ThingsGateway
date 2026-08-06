@@ -36,6 +36,31 @@ jobs:
             echo "No configured cross-repository credential was found; checkout will fall back to this repository's GITHUB_TOKEN."
           fi
 
+      - name: Probe cross-repository token access
+        shell: bash
+        env:
+          PLATFORM_CI_TOKEN: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
+        run: |
+          for repo in Industrial.Security.Abstractions Industrial.Security.AspNetCore Industrial.Health.Abstractions; do
+            code=$(curl -sS -o /tmp/github-repo.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${PLATFORM_CI_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/wgtfee/${repo}")
+            echo "${repo}: HTTP ${code}"
+            if [ "${code}" != "200" ]; then
+              python3 - <<'PY'
+import json
+try:
+    with open('/tmp/github-repo.json', encoding='utf-8') as f:
+        data=json.load(f)
+    print('GitHub API message:', data.get('message','unknown'))
+except Exception:
+    print('GitHub API message: unreadable response')
+PY
+            fi
+          done
+
       - name: Checkout Security.Abstractions
         uses: actions/checkout@v4
         with:
