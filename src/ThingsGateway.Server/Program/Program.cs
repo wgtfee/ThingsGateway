@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.Configuration;
 
 using System.Runtime.InteropServices;
 using System.Text;
@@ -39,21 +40,15 @@ public class Program
                 }
                 catch
                 {
-
                 }
-
             }
         };
 
-
         await Task.Delay(2000).ConfigureAwait(false);
-        //当前工作目录设为程序集的基目录
         System.IO.Directory.SetCurrentDirectory(AppContext.BaseDirectory);
-        // 增加中文编码支持
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         ClaimConst.Scheme = $"{typeof(Program).Assembly.GetName().Name}{SchemeHelper.GetOrCreate()}";
-
         Runtime.CreateConfigOnMissing = true;
 
         #region 控制台输出Logo
@@ -82,98 +77,85 @@ public class Program
 
         if (WebEnableVariable.WebEnable)
         {
-
             await Serve.RunAsync(RunOptions.Default.ConfigureFirstActionBuilder(builder =>
             {
+                ApplyIndustrialSecurityProfile(builder.Configuration);
+
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     builder.Host.UseWindowsService();
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     builder.Host.UseSystemd();
 
                 if (Runtime.IsLegacyWindows)
-                    builder.Logging.ClearProviders(); //去除默认的事件日志提供者，某些情况下会日志输出异常，导致程序崩溃
-
-
+                    builder.Logging.ClearProviders();
             }).ConfigureBuilder(builder =>
-               {
-
-                   if (Runtime.IsSystemd)
-                   {
-                       builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Warning);
-                   }
-
-
-                   if (!builder.Environment.IsDevelopment())
-                   {
-                       builder.Services.AddResponseCompression(
-                       opts => opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(second));
-                   }
-
-                   builder.WebHost.UseWebRoot("wwwroot");
-                   builder.WebHost.UseStaticWebAssets();
-                   // 设置接口超时时间和上传大小-Kestrel
-                   builder.WebHost.ConfigureKestrel(u =>
-                   {
-                       u.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(30);
-                       u.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(30);
-                       u.Limits.MaxRequestBodySize = null;
-                   });
-               })
-                .Configure(app =>
+            {
+                if (Runtime.IsSystemd)
                 {
+                    builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Warning);
+                }
 
+                if (!builder.Environment.IsDevelopment())
+                {
+                    builder.Services.AddResponseCompression(
+                        opts => opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(second));
+                }
+
+                builder.WebHost.UseWebRoot("wwwroot");
+                builder.WebHost.UseStaticWebAssets();
+                builder.WebHost.ConfigureKestrel(u =>
+                {
+                    u.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(30);
+                    u.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(30);
+                    u.Limits.MaxRequestBodySize = null;
+                });
+            })
+            .Configure(app =>
+            {
 #if NET9_0_OR_GREATER
-                    app.MapRazorComponents<BlazorApp>()
-                        .AddAdditionalAssemblies(App.RazorAssemblies.Distinct().Where(a => a != typeof(Program).Assembly).ToArray())
-                        .AddInteractiveServerRenderMode();
+                app.MapRazorComponents<BlazorApp>()
+                    .AddAdditionalAssemblies(App.RazorAssemblies.Distinct().Where(a => a != typeof(Program).Assembly).ToArray())
+                    .AddInteractiveServerRenderMode();
 #elif NET8_0_OR_GREATER
-                    app.MapRazorComponents<BlazorAppNet8>()
-                .AddAdditionalAssemblies(App.RazorAssemblies.Distinct().Where(a => a != typeof(Program).Assembly).ToArray())
-                .AddInteractiveServerRenderMode();
+                app.MapRazorComponents<BlazorAppNet8>()
+                    .AddAdditionalAssemblies(App.RazorAssemblies.Distinct().Where(a => a != typeof(Program).Assembly).ToArray())
+                    .AddInteractiveServerRenderMode();
 #else
-
                 app.MapBlazorHub();
                 app.MapFallbackToPage("/_Host");
-
 #endif
-
-
-
-                    ReflectionInoHelper.RemoveAllCache();
-                    InstanceFactory.RemoveCache();
-                })
-                ).ConfigureAwait(false);
+                ReflectionInoHelper.RemoveAllCache();
+                InstanceFactory.RemoveCache();
+            })).ConfigureAwait(false);
         }
         else
         {
             await Serve.RunAsync(MiniRunOptions.Default.ConfigureFirstActionBuilder(builder =>
             {
+                builder.ConfigureAppConfiguration((_, configuration) => ApplyIndustrialSecurityProfile(configuration));
+
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     builder.UseWindowsService();
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                     builder.UseSystemd();
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
                     builder.ConfigureLogging(logging =>
                     {
-                        //去除默认的事件日志提供者，某些情况下会日志输出异常，导致程序崩溃
                         foreach (var provider in logging.Services.Where(s => s.ImplementationType?.Name == "EventLogLoggerProvider").ToList())
                         {
                             logging.Services.Remove(provider);
                         }
                     });
-
-
-
+                }
             }).ConfigureBuilder(builder =>
             {
-
                 if (Runtime.IsSystemd)
                 {
                     builder.ConfigureLogging(a => a.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Warning));
                 }
 
-                // 设置接口超时时间和上传大小-Kestrel
                 builder.ConfigureKestrel(u =>
                 {
                     u.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(30);
@@ -184,15 +166,38 @@ public class Program
                     app.Run(context => context.Response.WriteAsync("web is disable"));
                 });
             })
-                .Configure(app =>
-                {
-                    ReflectionInoHelper.RemoveAllCache();
-                    InstanceFactory.RemoveCache();
-                })
-                ).ConfigureAwait(false);
-
-
+            .Configure(app =>
+            {
+                ReflectionInoHelper.RemoveAllCache();
+                InstanceFactory.RemoveCache();
+            })).ConfigureAwait(false);
         }
+
         await Task.Delay(2000).ConfigureAwait(false);
+    }
+
+    private static void ApplyIndustrialSecurityProfile(IConfigurationBuilder configuration)
+    {
+        var profile = Environment.GetEnvironmentVariable("INDUSTRIAL_SECURITY_PROFILE")?.Trim();
+        if (string.IsNullOrWhiteSpace(profile))
+            return;
+
+        if (!profile.Equals("IamPrepare", StringComparison.OrdinalIgnoreCase)
+            && !profile.Equals("Shadow", StringComparison.OrdinalIgnoreCase)
+            && !profile.Equals("Centralized", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"INDUSTRIAL_SECURITY_PROFILE only supports IamPrepare, Shadow, or Centralized; received '{profile}'.");
+        }
+
+        var canonical = profile.Equals("IamPrepare", StringComparison.OrdinalIgnoreCase)
+            ? "IamPrepare"
+            : profile.Equals("Shadow", StringComparison.OrdinalIgnoreCase)
+                ? "Shadow"
+                : "Centralized";
+
+        configuration.AddJsonFile($"appsettings.{canonical}.json", optional: false, reloadOnChange: true);
+        // Deployment secrets and emergency overrides always win over profile JSON.
+        configuration.AddEnvironmentVariables();
     }
 }
