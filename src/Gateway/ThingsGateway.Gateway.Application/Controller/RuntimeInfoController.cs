@@ -27,7 +27,7 @@ namespace ThingsGateway.Gateway.Application;
 [Route("openApi/runtimeInfo")]
 [ApiController]
 [RolePermission]
-[Permission("THINGGATEWAY.Gateway.View")]
+[Permission("thingsgateway.gateway.view")]
 [Authorize(AuthenticationSchemes = "Bearer")]
 [TouchSocket.WebApi.Router("/miniapi/runtimeinfo/[action]")]
 [TouchSocket.WebApi.EnableCors("cors")]
@@ -109,7 +109,7 @@ public class RuntimeInfoController : ControllerBase, IRpcServer
     [HttpGet("variableList")]
     [DisplayName("获取变量信息")]
     [TouchSocket.WebApi.WebApi(Method = TouchSocket.WebApi.HttpMethodType.Post)]
-    public async Task<SqlSugarPagedList<VariableRuntime>> GetVariableList([FromQuery][TouchSocket.WebApi.FromBody] VariablePageInput input)
+    public async Task<SqlSugarPagedList<VariableRuntime>> GetVariableListAsync([FromQuery][TouchSocket.WebApi.FromBody] VariablePageInput input)
     {
         var variables = await GlobalData.GetCurrentUserIdVariables().ConfigureAwait(false);
         var data = variables
@@ -147,7 +147,7 @@ public class RuntimeInfoController : ControllerBase, IRpcServer
     public SqlSugarPagedList<PluginInfo> GetPluginInfos([FromQuery][TouchSocket.WebApi.FromBody] PluginInfoPageInput input)
     {
         //指定关键词搜索为插件FullName
-        return (GlobalData.PluginService.GetPluginList()).WhereIF(!input.Name.IsNullOrWhiteSpace(), a => a.Name == input.Name)
+        return (GlobalData.PluginService.GetPluginList()).WhereIF(!input.Name.IsNullOrWhiteSpace(), a => a.Name.Contains(input.Name))
                 .ToPagedList(input);
     }
 }
@@ -188,10 +188,8 @@ public class AlarmVariablePageInput : BasePageInput
     /// <inheritdoc/>
     public string? DeviceName { get; set; }
 
-    /// <inheritdoc/>
     public string Name { get; set; }
 
-    /// <inheritdoc/>
     public string RegisterAddress { get; set; }
 }
 
@@ -203,9 +201,7 @@ public class VariablePageInput : BasePageInput
     /// <inheritdoc/>
     public string? DeviceName { get; set; }
 
-    /// <inheritdoc/>
     public string Name { get; set; }
 
-    /// <inheritdoc/>
     public string RegisterAddress { get; set; }
 }
