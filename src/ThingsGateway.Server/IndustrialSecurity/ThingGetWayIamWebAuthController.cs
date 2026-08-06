@@ -31,6 +31,7 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
     private readonly IHttpClientFactory _clients;
     private readonly IShadowUserResolver _bindings;
     private readonly IAuthService _auth;
+    private readonly ICurrentUser _currentUser;
     private readonly IDataProtector _protector;
 
     public ThingGetWayIamWebAuthController(
@@ -38,12 +39,14 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
         IHttpClientFactory clients,
         IShadowUserResolver bindings,
         IAuthService auth,
+        ICurrentUser currentUser,
         IDataProtectionProvider dataProtection)
     {
         _configuration = configuration;
         _clients = clients;
         _bindings = bindings;
         _auth = auth;
+        _currentUser = currentUser;
         _protector = dataProtection.CreateProtector("ThingsGateway.IAM.Web.PKCE.v1");
     }
 
@@ -246,6 +249,23 @@ fetch('/account/logout',{method:'POST',credentials:'include'}).catch(()=>{}).fin
         mode = _configuration["Security:Authentication:Mode"] ?? "Local",
         clientId = ClientId(),
         redirectUri = RedirectUri()
+    });
+
+    /// <summary>
+    /// Authenticated diagnostic used by rollout smoke tests. It exposes only identity metadata
+    /// already present in the protected ThingsGateway cookie and never returns the IAM token.
+    /// </summary>
+    [Authorize]
+    [HttpGet("session")]
+    public IActionResult Session() => Ok(new
+    {
+        authenticated = _currentUser.IsAuthenticated,
+        identitySource = _currentUser.Source.ToString(),
+        globalUserId = _currentUser.GlobalUserId,
+        localUserId = _currentUser.LocalUserId ?? User.FindFirst(ClaimConst.UserId)?.Value,
+        userName = _currentUser.UserName,
+        tenantId = _currentUser.TenantId,
+        permissionVersion = _currentUser.PermissionVersion
     });
 
     private async Task<TokenExchangeResult?> ExchangeCodeAsync(
