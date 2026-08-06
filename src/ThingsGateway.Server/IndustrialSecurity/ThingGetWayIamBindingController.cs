@@ -30,7 +30,7 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
         if (!IsLocalSuperAdmin()) return Forbid();
 
         var rows = _db.Queryable<ThingGetWayShadowUserEntity>()
-            .OrderByDescending(x => x.UpdatedAt)
+            .OrderBy(x => x.UpdatedAt, OrderByType.Desc)
             .ToList()
             .Select(ToResponse);
         return Ok(rows);
