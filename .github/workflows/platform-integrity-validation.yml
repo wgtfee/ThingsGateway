@@ -1,0 +1,584 @@
+name: platform-integrity-validation
+
+on:
+  pull_request:
+    branches: [ develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: platform-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  access:
+    name: Cross-repository access
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require GitHub App configuration
+        shell: bash
+        env:
+          CLIENT_ID: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          PRIVATE_KEY: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          test -n "${CLIENT_ID}" || { echo "::error::PLATFORM_GITHUB_APP_CLIENT_ID is missing"; exit 1; }
+          test -n "${PRIVATE_KEY}" || { echo "::error::PLATFORM_GITHUB_APP_PRIVATE_KEY is missing"; exit 1; }
+
+      - name: Generate platform repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            Aneiang.Yarp
+            Industrial.IAM.Api
+            MOL
+            vol.web
+            IoTSharp
+            WCS
+            FreeIM
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+
+      - name: Verify all platform repositories
+        shell: bash
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          failed=0
+          for repo in Aneiang.Yarp Industrial.IAM.Api MOL vol.web IoTSharp WCS FreeIM Industrial.Security.Abstractions Industrial.Security.AspNetCore Industrial.Health.Abstractions; do
+            code=$(curl -sS -o /tmp/repo.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/wgtfee/${repo}")
+            echo "${repo}: HTTP ${code}"
+            [ "${code}" = "200" ] || failed=1
+          done
+          [ "${failed}" = "0" ] || { echo "::error::GitHub App cannot read every platform repository"; exit 1; }
+
+  gateway:
+    name: YARP gateway build and route contract
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            Aneiang.Yarp
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout YARP
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Aneiang.Yarp
+          ref: Develop
+          path: platform/apps/gateway/Aneiang.Yarp
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/apps/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Validate platform route contract
+        working-directory: platform/apps/gateway/Aneiang.Yarp/src/Industrial.Gateway.Host
+        run: |
+          python3 - <<'PY'
+          import json
+          cfg=json.load(open('appsettings.json',encoding='utf-8'))
+          routes=cfg['ReverseProxy']['Routes']
+          clusters=cfg['ReverseProxy']['Clusters']
+          required_routes=['iam-connect','iam-api','mes-api','mes-frontend','iot-api','iot-frontend','wcs-api','wcs-frontend','thinggateway-api','thinggateway-frontend','im-websocket-platform']
+          required_clusters=['iam','mes','mes-web','iot','iot-web','wcs','thinggateway','im']
+          missing=[x for x in required_routes if x not in routes] + [x for x in required_clusters if x not in clusters]
+          assert not missing, f'missing routes/clusters: {missing}'
+          assert {'PathRemovePrefix':'/api/thinggateway'} in routes['thinggateway-api'].get('Transforms',[])
+          assert not any(x.get('PathPrefix')=='/api' for x in routes['thinggateway-api'].get('Transforms',[]))
+          print('YARP platform route contract: OK')
+          PY
+      - name: Restore gateway host
+        working-directory: platform/apps/gateway/Aneiang.Yarp
+        run: dotnet restore src/Industrial.Gateway.Host/Industrial.Gateway.Host.csproj
+      - name: Build gateway host
+        working-directory: platform/apps/gateway/Aneiang.Yarp
+        run: dotnet build src/Industrial.Gateway.Host/Industrial.Gateway.Host.csproj --configuration Release --no-restore
+
+  iam:
+    name: IAM tests and build
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            Industrial.IAM.Api
+            Industrial.Security.Abstractions
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout IAM
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.IAM.Api
+          ref: master
+          path: platform/apps/iam/Industrial.IAM.Api
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore IAM tests
+        working-directory: platform/apps/iam/Industrial.IAM.Api
+        run: dotnet restore Industrial.IAM.Api.Tests/Industrial.IAM.Api.Tests.csproj
+      - name: Run IAM tests
+        working-directory: platform/apps/iam/Industrial.IAM.Api
+        run: dotnet test Industrial.IAM.Api.Tests/Industrial.IAM.Api.Tests.csproj --configuration Release --no-restore --verbosity normal
+      - name: Build IAM
+        working-directory: platform/apps/iam/Industrial.IAM.Api
+        run: dotnet build Industrial.IAM.Api.csproj --configuration Release --no-restore
+
+  mes:
+    name: MES backend build
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            MOL
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout MOL
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/MOL
+          ref: Dev_IAM
+          path: platform/MOL
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Validate MES IAM JSON contracts
+        working-directory: platform/MOL
+        run: |
+          python3 - <<'PY'
+          import json
+          for f in ['permission-manifest.json','VOL.WebApi/appsettings.IamPrepare.json','VOL.WebApi/appsettings.Shadow.json','VOL.WebApi/appsettings.Centralized.json']:
+              json.load(open(f,encoding='utf-8'))
+          print('MOL IAM JSON contracts: OK')
+          PY
+      - name: Restore MES backend
+        working-directory: platform/MOL
+        run: dotnet restore VOL.WebApi/VOL.WebApi.csproj
+      - name: Build MES backend
+        working-directory: platform/MOL
+        run: dotnet build VOL.WebApi/VOL.WebApi.csproj --configuration Release --no-restore
+
+  mes_frontend:
+    name: MES frontend build and typecheck
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: vol.web
+          permission-contents: read
+      - name: Checkout vol.web
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/vol.web
+          ref: Develop_IAM
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm run type-check
+
+  iot:
+    name: IoT frontend security tests and backend build
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            IoTSharp
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout IoTSharp
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/IoTSharp
+          ref: Develop
+          path: platform/IoTSharp
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install IoT frontend dependencies
+        working-directory: platform/IoTSharp/ClientApp
+        run: npm install --no-audit --no-fund
+      - name: Build IoT frontend
+        working-directory: platform/IoTSharp/ClientApp
+        run: npm run build
+      - name: Restore IoT tests
+        working-directory: platform/IoTSharp
+        run: dotnet restore IoTSharp.Test/IoTSharp.Test.csproj
+      - name: Run Industrial Security tests
+        working-directory: platform/IoTSharp
+        run: dotnet test IoTSharp.Test/IoTSharp.Test.csproj --configuration Debug --no-restore --filter FullyQualifiedName~IndustrialSecurity --verbosity normal
+      - name: Build IoT backend
+        working-directory: platform/IoTSharp
+        run: dotnet build IoTSharp/IoTSharp.csproj --configuration Debug --no-restore
+
+  freeim:
+    name: FreeIM IAM integration tests and build
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            FreeIM
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout FreeIM
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/FreeIM
+          ref: Develop
+          path: platform/FreeIM
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore FreeIM tests
+        working-directory: platform/FreeIM
+        run: dotnet restore ImServer.Tests/ImServer.Tests.csproj
+      - name: Run FreeIM IAM integration tests
+        working-directory: platform/FreeIM
+        run: dotnet test ImServer.Tests/ImServer.Tests.csproj --configuration Release --no-restore --verbosity normal
+      - name: Build FreeIM
+        working-directory: platform/FreeIM
+        run: dotnet build ImServer/ImServer.csproj --configuration Release --no-restore
+
+  wcs:
+    name: WCS runtime security tests host and desktop build
+    needs: access
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      CONFIGURATION: Release
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            WCS
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout WCS
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/WCS
+          ref: Dev_IAM
+          path: platform/WCS
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore WCS runtime tests
+        working-directory: platform/WCS
+        run: dotnet restore src/Wcs.Core.Tests/Wcs.Core.Tests.csproj
+      - name: Run WCS runtime regression tests
+        working-directory: platform/WCS
+        run: dotnet test src/Wcs.Core.Tests/Wcs.Core.Tests.csproj --configuration $env:CONFIGURATION --no-restore --verbosity normal
+      - name: Restore WCS host security tests
+        working-directory: platform/WCS
+        run: dotnet restore src/Wcs.Host.Tests/Wcs.Host.Tests.csproj
+      - name: Run WCS host security tests
+        working-directory: platform/WCS
+        run: dotnet test src/Wcs.Host.Tests/Wcs.Host.Tests.csproj --configuration $env:CONFIGURATION --no-restore --verbosity normal
+      - name: Build WCS Host
+        working-directory: platform/WCS
+        run: dotnet build src/Wcs.Host/Wcs.Host.csproj --configuration $env:CONFIGURATION --no-restore
+      - name: Build WCS Desktop
+        working-directory: platform/WCS
+        run: dotnet restore src/Wcs.Desktop/Wcs.Desktop.csproj; dotnet build src/Wcs.Desktop/Wcs.Desktop.csproj --configuration $env:CONFIGURATION --no-restore
+
+  thingsgateway:
+    name: ThingsGateway IAM contract restore and build
+    needs: access
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout ThingsGateway probe
+        uses: actions/checkout@v4
+        with:
+          path: platform/ThingsGateway
+          persist-credentials: false
+      - name: Generate repository token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLATFORM_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLATFORM_GITHUB_APP_PRIVATE_KEY }}
+          owner: wgtfee
+          repositories: |
+            Industrial.Security.Abstractions
+            Industrial.Security.AspNetCore
+            Industrial.Health.Abstractions
+          permission-contents: read
+      - name: Checkout Security.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.Abstractions
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Security.AspNetCore
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Security.AspNetCore
+          ref: master
+          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Checkout Health.Abstractions
+        uses: actions/checkout@v4
+        with:
+          repository: wgtfee/Industrial.Health.Abstractions
+          ref: master
+          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
+      - name: Prepare shared paths and local NuGet source
+        shell: bash
+        run: |
+          mkdir -p platform/nupkgs
+          ln -s ../Industrial.Security platform/ThingsGateway/Industrial.Security
+          ln -s ../Industrial.Health platform/ThingsGateway/Industrial.Health
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Validate IAM contract
+        working-directory: platform/ThingsGateway
+        run: python3 scripts/validate_iam_sso.py
+      - name: Restore ThingsGateway
+        working-directory: platform/ThingsGateway
+        run: dotnet restore src/ThingsGateway.Server/ThingsGateway.Server.csproj -p:EnableProPackages=false -p:EnableWindowsTargeting=true
+      - name: Build ThingsGateway
+        working-directory: platform/ThingsGateway
+        run: dotnet build src/ThingsGateway.Server/ThingsGateway.Server.csproj -f net8.0 --configuration Release --no-restore -p:EnableProPackages=false -p:EnableWindowsTargeting=true
+
+  summary:
+    name: Platform integrity summary
+    if: always()
+    needs: [access, gateway, iam, mes, mes_frontend, iot, freeim, wcs, thingsgateway]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate platform build gate
+        shell: bash
+        env:
+          ACCESS: ${{ needs.access.result }}
+          GATEWAY: ${{ needs.gateway.result }}
+          IAM: ${{ needs.iam.result }}
+          MES: ${{ needs.mes.result }}
+          MES_FRONTEND: ${{ needs.mes_frontend.result }}
+          IOT: ${{ needs.iot.result }}
+          FREEIM: ${{ needs.freeim.result }}
+          WCS: ${{ needs.wcs.result }}
+          THINGSGATEWAY: ${{ needs.thingsgateway.result }}
+        run: |
+          printf '%-18s %s\n' access "$ACCESS" gateway "$GATEWAY" iam "$IAM" mes "$MES" mes-frontend "$MES_FRONTEND" iot "$IOT" freeim "$FREEIM" wcs "$WCS" thingsgateway "$THINGSGATEWAY"
+          for value in "$ACCESS" "$GATEWAY" "$IAM" "$MES" "$MES_FRONTEND" "$IOT" "$FREEIM" "$WCS" "$THINGSGATEWAY"; do
+            [ "$value" = success ] || exit 1
+          done
