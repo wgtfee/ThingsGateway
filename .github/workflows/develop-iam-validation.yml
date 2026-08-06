@@ -19,6 +19,10 @@ jobs:
         working-directory: platform/ThingsGateway
         run: python3 scripts/validate_iam_sso.py
 
+      - name: Validate live acceptance script syntax
+        working-directory: platform/ThingsGateway
+        run: python3 -m py_compile scripts/validate_iam_sso_live.py
+
       - name: Checkout Security.Abstractions
         uses: actions/checkout@v4
         with:
