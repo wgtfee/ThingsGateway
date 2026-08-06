@@ -25,7 +25,7 @@ namespace ThingsGateway.Gateway.Application;
 [ApiDescriptionSettings("ThingsGateway.OpenApi", Order = 200)]
 [Route("openApi/management/[action]")]
 [RolePermission]
-[Permission("THINGGATEWAY.Gateway.Manage")]
+[Permission("thingsgateway.gateway.manage")]
 [RequestAudit]
 [ApiController]
 [Authorize(AuthenticationSchemes = "Bearer")]
