@@ -27,12 +27,22 @@ jobs:
         working-directory: platform/ThingsGateway
         run: python3 -m py_compile scripts/validate_iam_sso_live.py
 
+      - name: Cross-repository credential diagnostic
+        shell: bash
+        run: |
+          if [ "${{ (secrets.PLATFORM_CI_TOKEN != '') || (secrets.GH_PAT != '') || (secrets.GITHUB_PAT != '') || (secrets.PAT != '') || (secrets.REPO_TOKEN != '') || (secrets.ACCESS_TOKEN != '') || (secrets.PERSONAL_ACCESS_TOKEN != '') }}" = "true" ]; then
+            echo "A configured cross-repository credential is available."
+          else
+            echo "No configured cross-repository credential was found; checkout will fall back to this repository's GITHUB_TOKEN."
+          fi
+
       - name: Checkout Security.Abstractions
         uses: actions/checkout@v4
         with:
           repository: wgtfee/Industrial.Security.Abstractions
           ref: master
           path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
 
       - name: Checkout Security.AspNetCore
         uses: actions/checkout@v4
@@ -40,6 +50,7 @@ jobs:
           repository: wgtfee/Industrial.Security.AspNetCore
           ref: master
           path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
 
       - name: Checkout Health.Abstractions
         uses: actions/checkout@v4
@@ -47,6 +58,7 @@ jobs:
           repository: wgtfee/Industrial.Health.Abstractions
           ref: master
           path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
 
       - uses: actions/setup-dotnet@v4
         with:
