@@ -20,7 +20,7 @@ namespace ThingsGateway.Gateway.Application;
 [ApiDescriptionSettings(false)]
 [Route("api/gatewayExport")]
 [IgnoreRolePermission]
-[Permission("THINGGATEWAY.Gateway.Export")]
+[Permission("thingsgateway.gateway.export")]
 [Authorize]
 public class GatewayExportController : ControllerBase
 {
