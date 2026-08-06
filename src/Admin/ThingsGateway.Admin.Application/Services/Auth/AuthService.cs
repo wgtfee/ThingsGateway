@@ -90,6 +90,42 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
+    /// 使用已经由可信上游身份系统验证并显式绑定的本地用户执行原生 Cookie 登录。
+    /// 该入口不验证本地密码，但仍复用原生登录生命周期，包括账号/组织/模块状态校验、
+    /// 在线会话、单用户登录、登录时间更新以及原始 Claims 生成。
+    /// </summary>
+    public async Task<LoginOutput> LoginTrustedLocalUserAsync(
+        long localUserId,
+        IReadOnlyCollection<Claim>? additionalClaims = null)
+    {
+        if (localUserId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(localUserId));
+
+        var appConfig = await _configService.GetAppConfigAsync().ConfigureAwait(false);
+        var userInfo = await _sysUserService.GetUserByIdAsync(localUserId).ConfigureAwait(false);
+        if (userInfo is null)
+            throw Oops.Bah(_localizer["UserNull", localUserId.ToString()]);
+
+        var tenantEnabled = App.GetOptions<TenantOptions>()?.Enable ?? false;
+        var tenantId = tenantEnabled
+            ? await _sysOrgService.GetTenantIdByOrgIdAsync(userInfo.OrgId).ConfigureAwait(false)
+            : RoleConst.DefaultTenantId;
+
+        var input = new LoginInput
+        {
+            Account = userInfo.Account,
+            TenantId = tenantId
+        };
+
+        return await ExecLogin(
+            appConfig.LoginPolicy,
+            input,
+            userInfo,
+            isCookie: true,
+            additionalClaims).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// 注销当前用户
     /// </summary>
     public async Task LoginOutAsync()
@@ -166,8 +202,14 @@ public class AuthService : IAuthService
     /// <param name="input">用户登录参数</param>
     /// <param name="sysUser">用户信息</param>
     /// <param name="isCookie">cookie方式登录</param>
+    /// <param name="additionalClaims">可信服务端调用方附加的平台身份 Claim。</param>
     /// <returns>登录输出结果</returns>
-    private async Task<LoginOutput> ExecLogin(LoginPolicy loginPolicy, LoginInput input, SysUser sysUser, bool isCookie = true)
+    private async Task<LoginOutput> ExecLogin(
+        LoginPolicy loginPolicy,
+        LoginInput input,
+        SysUser sysUser,
+        bool isCookie = true,
+        IReadOnlyCollection<Claim>? additionalClaims = null)
     {
         if (sysUser.Status == false)
             throw Oops.Bah(_localizer["UserDisable", sysUser.Account]);//账号已停用
@@ -226,6 +268,15 @@ public class AuthService : IAuthService
             identity.AddClaim(new Claim(ClaimConst.SuperAdmin, sysUser.RoleIdList.Contains(RoleConst.SuperAdminRoleId).ToString()));
             identity.AddClaim(new Claim(ClaimConst.OrgId, sysUser.OrgId.ToString()));
             identity.AddClaim(new Claim(ClaimConst.TenantId, input.TenantId?.ToString() ?? "0"));
+
+            if (additionalClaims is not null)
+            {
+                foreach (var claim in additionalClaims)
+                {
+                    if (!identity.HasClaim(x => x.Type == claim.Type && x.Value == claim.Value))
+                        identity.AddClaim(claim);
+                }
+            }
 
             await _appService.LoginAsync(identity, expire).ConfigureAwait(false);
 
@@ -303,7 +354,7 @@ public class AuthService : IAuthService
 
         #region 登录/密码策略
 
-        var key = CacheConst.Cache_LoginErrorCount + sysUser.Account;//获取登录错误次数Key值
+        var key = CacheConst.Cache_LoginErrorCount + sysUser.Account;//移除登录错误次数Key值
         App.CacheService.Remove(key);//移除登录错误次数
 
         //获取用户verificat列表
