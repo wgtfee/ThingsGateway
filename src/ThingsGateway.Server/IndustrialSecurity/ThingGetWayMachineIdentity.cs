@@ -1,5 +1,6 @@
-using System.Net.Http.Json;
+using System.Net.Http;
 using System.Text.Json;
+using Furion;
 using Industrial.Security.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -70,7 +71,9 @@ internal sealed class ThingGetWayMachineTokenProvider(
         var enabled = section.GetValue<bool>("Enabled");
         var authority = (section["Authority"] ?? configuration["Security:Central:Authority"] ?? "http://localhost:5100").TrimEnd('/');
         var clientId = section["ClientId"] ?? IndustrialServiceClientIds.ThingsGateway;
-        var clientSecret = section["ClientSecret"] ?? string.Empty;
+        var clientSecret = section["ClientSecret"]
+            ?? configuration["Security:ResourceSync:ClientSecret"]
+            ?? string.Empty;
         var scope = section["Scope"] ?? IndustrialSecurityScopes.IotGatewayConnect;
 
         if (!enabled)
@@ -81,7 +84,7 @@ internal sealed class ThingGetWayMachineTokenProvider(
         if (string.IsNullOrWhiteSpace(clientSecret))
         {
             state.Set(new(true, false, clientId, scope, null, null, "ClientSecret is empty."));
-            throw new InvalidOperationException("IndustrialMachineIdentity:ClientSecret is required when machine identity is enabled.");
+            throw new InvalidOperationException("IndustrialMachineIdentity:ClientSecret (or Security:ResourceSync:ClientSecret) is required when machine identity is enabled.");
         }
 
         if (!string.IsNullOrWhiteSpace(_accessToken) && _expiresAt > DateTimeOffset.UtcNow.AddMinutes(2))
@@ -175,7 +178,14 @@ internal sealed class ThingGetWayMachineIdentityWorker(
                     "ThingsGateway machine identity refresh failed. Device acquisition remains active and the worker will retry.");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(checkSeconds), stoppingToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(checkSeconds), stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 }
