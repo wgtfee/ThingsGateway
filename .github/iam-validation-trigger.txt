@@ -1,1 +1,2 @@
 Temporary CI probe branch for IAM cross-repository validation. Do not merge.
+Secret rotation validation trigger: 2026-08-06T14:43Z
