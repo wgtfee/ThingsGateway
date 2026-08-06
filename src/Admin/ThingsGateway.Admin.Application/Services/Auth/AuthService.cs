@@ -53,6 +53,17 @@ public class AuthService : IAuthService
     /// <returns>登录输出</returns>
     public async Task<LoginOutput> LoginAsync(LoginInput input, bool isCookie = true)
     {
+        // Shadow deliberately keeps the native password flow for side-by-side verification.
+        // Once authorization is fully Centralized, however, local credentials must no longer
+        // mint either a browser cookie or a local API token.
+        if (string.Equals(
+                App.Configuration["Security:Authorization:Mode"],
+                "Centralized",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw Oops.Bah("系统已启用统一身份认证，请使用 IAM 登录。");
+        }
+
         var appConfig = await _configService.GetAppConfigAsync().ConfigureAwait(false);
 
         if (!appConfig.WebsitePolicy.WebStatus
@@ -114,6 +125,7 @@ public class AuthService : IAuthService
         var input = new LoginInput
         {
             Account = userInfo.Account,
+            Password = string.Empty,
             TenantId = tenantId
         };
 
