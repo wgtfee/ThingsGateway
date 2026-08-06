@@ -4,18 +4,13 @@
     "name": "ThingsGateway 设备采集网关",
     "description": "设备采集、通道、变量和网关运维权限"
   },
-  "version": "2.0.1",
+  "version": "2.1.0",
   "resources": [
     { "code": "thingsgateway.gateway.access", "name": "设备采集网关", "type": "Module" },
     { "code": "thingsgateway.gateway.view", "name": "网关监控", "type": "Page", "parentCode": "thingsgateway.gateway.access", "route": "/gateway/monitor", "apiPath": "/api/thinggateway/openApi/runtimeInfo/*", "httpMethod": "GET" },
     { "code": "thingsgateway.gateway.control", "name": "控制通道设备变量", "type": "Action", "parentCode": "thingsgateway.gateway.view", "apiPath": "/api/thinggateway/openApi/control/*", "httpMethod": "POST" },
     { "code": "thingsgateway.gateway.manage", "name": "网关配置管理", "type": "Action", "parentCode": "thingsgateway.gateway.access", "apiPath": "/api/thinggateway/openApi/management/*", "httpMethod": "*" },
     { "code": "thingsgateway.gateway.export", "name": "导出网关配置", "type": "Action", "parentCode": "thingsgateway.gateway.view", "apiPath": "/api/thinggateway/api/gatewayExport/*", "httpMethod": "POST" },
-
-    { "code": "thinggateway.gateway.view", "name": "兼容旧码：网关监控", "type": "Action", "parentCode": "thingsgateway.gateway.access", "apiPath": "/api/thinggateway/openApi/runtimeInfo/*", "httpMethod": "GET", "metadataJson": "{\"migrationAlias\":true,\"replacement\":\"thingsgateway.gateway.view\"}" },
-    { "code": "thinggateway.gateway.control", "name": "兼容旧码：设备控制", "type": "Action", "parentCode": "thingsgateway.gateway.access", "apiPath": "/api/thinggateway/openApi/control/*", "httpMethod": "POST", "metadataJson": "{\"migrationAlias\":true,\"replacement\":\"thingsgateway.gateway.control\"}" },
-    { "code": "thinggateway.gateway.manage", "name": "兼容旧码：网关管理", "type": "Action", "parentCode": "thingsgateway.gateway.access", "apiPath": "/api/thinggateway/openApi/management/*", "httpMethod": "*", "metadataJson": "{\"migrationAlias\":true,\"replacement\":\"thingsgateway.gateway.manage\"}" },
-    { "code": "thinggateway.gateway.export", "name": "兼容旧码：网关导出", "type": "Action", "parentCode": "thingsgateway.gateway.access", "apiPath": "/api/thinggateway/api/gatewayExport/*", "httpMethod": "POST", "metadataJson": "{\"migrationAlias\":true,\"replacement\":\"thingsgateway.gateway.export\"}" },
 
     { "code": "thingsgateway.gateway.system", "name": "网关系统设置", "type": "Page", "parentCode": "thingsgateway.gateway.access", "route": "/gateway/system" },
     { "code": "thingsgateway.gateway.plugin", "name": "插件管理", "type": "Page", "parentCode": "thingsgateway.gateway.access", "route": "/gateway/plugin" },
