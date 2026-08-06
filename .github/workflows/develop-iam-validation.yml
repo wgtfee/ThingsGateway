@@ -27,20 +27,23 @@ jobs:
         working-directory: platform/ThingsGateway
         run: python3 -m py_compile scripts/validate_iam_sso_live.py
 
-      - name: Cross-repository credential diagnostic
+      - name: Require PLATFORM_CI_TOKEN
         shell: bash
+        env:
+          PLATFORM_CI_TOKEN: ${{ secrets.PLATFORM_CI_TOKEN }}
         run: |
-          if [ "${{ (secrets.PLATFORM_CI_TOKEN != '') || (secrets.GH_PAT != '') || (secrets.GITHUB_PAT != '') || (secrets.PAT != '') || (secrets.REPO_TOKEN != '') || (secrets.ACCESS_TOKEN != '') || (secrets.PERSONAL_ACCESS_TOKEN != '') }}" = "true" ]; then
-            echo "A configured cross-repository credential is available."
-          else
-            echo "No configured cross-repository credential was found; checkout will fall back to this repository's GITHUB_TOKEN."
+          if [ -z "${PLATFORM_CI_TOKEN}" ]; then
+            echo "::error::PLATFORM_CI_TOKEN is not configured. This workflow requires one dedicated cross-repository credential."
+            exit 1
           fi
+          echo "PLATFORM_CI_TOKEN is configured."
 
       - name: Probe cross-repository token access
         shell: bash
         env:
-          PLATFORM_CI_TOKEN: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
+          PLATFORM_CI_TOKEN: ${{ secrets.PLATFORM_CI_TOKEN }}
         run: |
+          failed=0
           for repo in Industrial.Security.Abstractions Industrial.Security.AspNetCore Industrial.Health.Abstractions; do
             code=$(curl -sS -o /tmp/github-repo.json -w "%{http_code}" \
               -H "Authorization: Bearer ${PLATFORM_CI_TOKEN}" \
@@ -49,6 +52,7 @@ jobs:
               "https://api.github.com/repos/wgtfee/${repo}")
             echo "${repo}: HTTP ${code}"
             if [ "${code}" != "200" ]; then
+              failed=1
               python3 - <<'PY'
 import json
 try:
@@ -60,6 +64,10 @@ except Exception:
 PY
             fi
           done
+          if [ "${failed}" -ne 0 ]; then
+            echo "::error::PLATFORM_CI_TOKEN cannot read one or more required private repositories."
+            exit 1
+          fi
 
       - name: Checkout Security.Abstractions
         uses: actions/checkout@v4
@@ -67,7 +75,7 @@ PY
           repository: wgtfee/Industrial.Security.Abstractions
           ref: master
           path: platform/Industrial.Security/src/Industrial.Security.Abstractions
-          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
+          token: ${{ secrets.PLATFORM_CI_TOKEN }}
 
       - name: Checkout Security.AspNetCore
         uses: actions/checkout@v4
@@ -75,7 +83,7 @@ PY
           repository: wgtfee/Industrial.Security.AspNetCore
           ref: master
           path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
-          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
+          token: ${{ secrets.PLATFORM_CI_TOKEN }}
 
       - name: Checkout Health.Abstractions
         uses: actions/checkout@v4
@@ -83,7 +91,7 @@ PY
           repository: wgtfee/Industrial.Health.Abstractions
           ref: master
           path: platform/Industrial.Health/src/Industrial.Health.Abstractions
-          token: ${{ secrets.PLATFORM_CI_TOKEN || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.PAT || secrets.REPO_TOKEN || secrets.ACCESS_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || github.token }}
+          token: ${{ secrets.PLATFORM_CI_TOKEN }}
 
       - uses: actions/setup-dotnet@v4
         with:
