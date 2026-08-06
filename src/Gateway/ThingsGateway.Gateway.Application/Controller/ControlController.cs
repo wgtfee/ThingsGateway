@@ -29,7 +29,7 @@ namespace ThingsGateway.Gateway.Application;
 [ApiDescriptionSettings("ThingsGateway.OpenApi", Order = 200)]
 [Route("openApi/control")]
 [RolePermission]
-[Permission("THINGGATEWAY.Gateway.Control")]
+[Permission("thingsgateway.gateway.control")]
 [RequestAudit]
 [ApiController]
 [Authorize(AuthenticationSchemes = "Bearer")]
