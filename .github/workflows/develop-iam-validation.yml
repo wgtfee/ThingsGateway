@@ -53,15 +53,8 @@ jobs:
             echo "${repo}: HTTP ${code}"
             if [ "${code}" != "200" ]; then
               failed=1
-              python3 - <<'PY'
-import json
-try:
-    with open('/tmp/github-repo.json', encoding='utf-8') as f:
-        data=json.load(f)
-    print('GitHub API message:', data.get('message','unknown'))
-except Exception:
-    print('GitHub API message: unreadable response')
-PY
+              message=$(python3 -c 'import json; print(json.load(open("/tmp/github-repo.json", encoding="utf-8")).get("message", "unknown"))' 2>/dev/null || true)
+              echo "GitHub API message: ${message:-unreadable response}"
             fi
           done
           if [ "${failed}" -ne 0 ]; then
