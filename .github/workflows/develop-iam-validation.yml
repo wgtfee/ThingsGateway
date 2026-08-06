@@ -112,9 +112,16 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
-      - name: Prepare local NuGet source directory
+      - name: Prepare shared dependency paths and local NuGet source
         shell: bash
-        run: mkdir -p platform/nupkgs
+        run: |
+          mkdir -p platform/nupkgs
+          ln -s ../Industrial.Security platform/ThingsGateway/Industrial.Security
+          ln -s ../Industrial.Health platform/ThingsGateway/Industrial.Health
+          test -f platform/Industrial.Security/src/Industrial.Security.Abstractions/Industrial.Security.Abstractions.csproj
+          test -f platform/ThingsGateway/Industrial.Security/src/Industrial.Security.Abstractions/Industrial.Security.Abstractions.csproj
+          test -f platform/Industrial.Health/src/Industrial.Health.Abstractions/Industrial.Health.Abstractions.csproj
+          test -f platform/ThingsGateway/Industrial.Health/src/Industrial.Health.Abstractions/Industrial.Health.Abstractions.csproj
 
       - uses: actions/setup-dotnet@v4
         with:
