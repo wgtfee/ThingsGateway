@@ -90,7 +90,7 @@ jobs:
         with:
           repository: wgtfee/Industrial.Security.Abstractions
           ref: master
-          path: platform/Industrial.Security/src/Industrial.Security.Abstractions
+          path: platform/ThingsGateway/Industrial.Security/src/Industrial.Security.Abstractions
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
@@ -99,7 +99,7 @@ jobs:
         with:
           repository: wgtfee/Industrial.Security.AspNetCore
           ref: master
-          path: platform/Industrial.Security/src/Industrial.Security.AspNetCore
+          path: platform/ThingsGateway/Industrial.Security/src/Industrial.Security.AspNetCore
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
@@ -108,7 +108,7 @@ jobs:
         with:
           repository: wgtfee/Industrial.Health.Abstractions
           ref: master
-          path: platform/Industrial.Health/src/Industrial.Health.Abstractions
+          path: platform/ThingsGateway/Industrial.Health/src/Industrial.Health.Abstractions
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: false
 
@@ -118,11 +118,11 @@ jobs:
 
       - name: Restore ThingsGateway server
         working-directory: platform/ThingsGateway
-        run: dotnet restore src/ThingsGateway.Server/ThingsGateway.Server.csproj -p:EnableProPackages=false
+        run: dotnet restore src/ThingsGateway.Server/ThingsGateway.Server.csproj -p:EnableProPackages=false -p:EnableWindowsTargeting=true
 
       - name: Build ThingsGateway server
         working-directory: platform/ThingsGateway
-        run: dotnet build src/ThingsGateway.Server/ThingsGateway.Server.csproj -f net8.0 --configuration Release --no-restore -p:EnableProPackages=false
+        run: dotnet build src/ThingsGateway.Server/ThingsGateway.Server.csproj -f net8.0 --configuration Release --no-restore -p:EnableProPackages=false -p:EnableWindowsTargeting=true
 
       - name: Publish cloud validation status
         if: always()
