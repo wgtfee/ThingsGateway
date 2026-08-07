@@ -225,7 +225,7 @@ public class Startup : AppStartup
                 options.ClientSecret = data.ClientSecret;
             });
 
-                authenticationBuilder.AddOAuth<GitHubOAuthOptions, AdminOAuthHandler<GiteeOAuthOptions>>("Github", "Github", options =>
+                authenticationBuilder.AddOAuth<GitHubOAuthOptions, AdminOAuthHandler<GitHubOAuthOptions>>("Github", "Github", options =>
                 {
                     var data = App.GetConfig<GithubOAuthSettings>("GithubOAuthSettings");
                     options.ClientId = data.ClientId;
@@ -274,8 +274,8 @@ public class Startup : AppStartup
                     .ProtectKeysWithCertificate(certificate)
                     .UseCryptographicAlgorithms(new AuthenticatedEncryptorConfiguration
                     {
-                        EncryptionAlgorithm = AuthenticatedEncryptionAlgorithm.AES_256_CBC,
-                        ValidationAlgorithm = AuthenticatedEncryptionValidationAlgorithm.HMACSHA256
+                        EncryptionAlgorithm = EncryptionAlgorithm.AES_256_CBC,
+                        ValidationAlgorithm = ValidationAlgorithm.HMACSHA256
                     });
             }
         }
@@ -371,7 +371,7 @@ public class Startup : AppStartup
             {
                 options.RequestPath = "/schedule";  // 必须以 / 开头且不以 / 结尾
                 options.DisableOnProduction = true; // 生产环境关闭
-                options.DisplayEmptyTriggerJobs = true; // 是否显示空作业触发器
+                options.DisplayEmptyTriggerJobs = true; // 是否显示空作业触发器的作业
                 options.DisplayHead = false; // 是否显示页头
                 options.DefaultExpandAllJobs = false; // 是否默认展开所有作业
             });
