@@ -6,6 +6,7 @@
 	<ItemGroup Condition=" '$(SolutionName)' != 'ThingsGatewayRelease'">
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Application\ThingsGateway.Gateway.Application.csproj" />
 		<ProjectReference Include="..\Gateway\ThingsGateway.Gateway.Razor\ThingsGateway.Gateway.Razor.csproj" />
+		<ProjectReference Include="..\Admin\ThingsGateway.Furion\ThingsGateway.Furion.csproj" />
     <ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Industrial.Health\src\Industrial.Health.Abstractions\Industrial.Health.Abstractions.csproj" />
 		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.AspNetCore\Industrial.Security.AspNetCore.csproj" />
