@@ -61,6 +61,10 @@ jobs:
 
           assert 'AddIndustrialSecurity' in startup
           assert 'UseIndustrialSecurity' in startup
+          authn = startup.index('app.UseAuthentication()')
+          industrial = startup.index('app.UseIndustrialSecurity()')
+          authz = startup.index('app.UseAuthorization()')
+          assert authn < industrial < authz, 'ThingsGateway security middleware order must be Authentication -> Industrial.Security -> Authorization'
           print('ThingsGateway develop IAM contract OK')
 
       - name: Publish validation status
