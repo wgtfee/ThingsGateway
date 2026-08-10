@@ -12,7 +12,7 @@
 		<IsTrimmable>false</IsTrimmable>
 		<ManagementProPluginVersion>10.11.87</ManagementProPluginVersion>
 		<ManagementPluginVersion>10.11.87</ManagementPluginVersion>
-		<TSVersion>4.0.0-rc.46</TSVersion>
+		<TSVersion>4.2.0</TSVersion>
 		
 		
 	</PropertyGroup>

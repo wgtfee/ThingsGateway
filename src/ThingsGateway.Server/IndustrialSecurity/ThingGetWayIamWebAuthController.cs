@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using ThingsGateway.Admin.Application;
+using ThingsGateway.DB;
 
 namespace ThingsGateway.Server.IndustrialSecurity;
 
@@ -55,6 +56,7 @@ public sealed class ThingGetWayIamWebAuthController : ControllerBase
     /// to Gateway/IAM /account/login; ThingsGateway never receives or stores the IAM password.
     /// </summary>
     [AllowAnonymous]
+    [NonUnify]
     [HttpGet("signin")]
     public IActionResult SignInPage([FromQuery] string? returnUrl = null)
     {
@@ -123,6 +125,7 @@ form.addEventListener('submit', async (event) => {
 
     /// <summary>Starts the Authorization Code + PKCE flow after the IAM browser session exists.</summary>
     [AllowAnonymous]
+    [NonUnify]
     [HttpGet("login")]
     public IActionResult Login([FromQuery] string? returnUrl = null)
     {
@@ -163,6 +166,7 @@ form.addEventListener('submit', async (event) => {
     /// explicit local-user binding, then enters the unchanged ThingsGateway native login path.
     /// </summary>
     [AllowAnonymous]
+    [NonUnify]
     [HttpGet("callback")]
     public async Task<IActionResult> Callback(
         [FromQuery] string? code,
@@ -227,6 +231,7 @@ form.addEventListener('submit', async (event) => {
 
     /// <summary>Logs out both the native ThingsGateway session and the IAM browser session.</summary>
     [Authorize]
+    [NonUnify]
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()
     {

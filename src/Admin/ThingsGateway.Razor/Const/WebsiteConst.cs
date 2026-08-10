@@ -24,5 +24,8 @@ public static class WebsiteConst
     /// <summary>
     /// 默认的资源路径
     /// </summary>
-    public const string DefaultResourceUrl = "/_content/ThingsGateway.Razor/";
+    // Keep static-web-asset URLs relative to the document base. This allows the
+    // application to work both at "/" and behind a path base such as
+    // "/thinggateway/".
+    public const string DefaultResourceUrl = "_content/ThingsGateway.Razor/";
 }

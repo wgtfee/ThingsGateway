@@ -1,81 +1,64 @@
 ﻿{
-
-
-  // 详细数据库配置见SqlSugar官网
-  // 数据库连接字符串参考地址：https://www.connectionstrings.com/
-
-  //Sqlsugar数据库配置
   "SqlSugar": [
     {
-      "ConfigId": "DB_Admin", //ID
-      //"ConnectionString": "server=localhost;Database=test;Uid=root;Pwd=111111;AllowLoadLocalInfile=true;", //连接字符串
-      //"DbType": "MySql", //数据库类型
-      "ConnectionString": "Data Source=./DB/Admin.db;", //连接字符串
-      "DbType": "Sqlite", //数据库类型
-      "LanguageType": "Chinese", //中文提示
-      "IsAutoCloseConnection": true, //是否自动释放
-      "InitDatabase": true, //是否初始化数据库,适用于codefirst
-      "InitTable": true, //是否初始化表,适用于codefirst
-      "InitSeedData": true, //是否初始化种子数据
-      "IsUpdateSeedData": false, //是否更新种子数据
-      "IsShowSql": false //是否控制台显示Sql语句
+      "ConfigId": "DB_Admin",
+      "ConnectionString": "Server=DESKTOP-2ALRK02\\MSSQ;Database=ThingsGateway_Admin;User Id=sa;Password=123456;TrustServerCertificate=True;",
+      "DbType": "SqlServer",
+      "LanguageType": "Chinese",
+      "IsAutoCloseConnection": true,
+      "InitDatabase": true,
+      "InitTable": true,
+      "InitSeedData": true,
+      "IsUpdateSeedData": false,
+      "IsShowSql": false
     },
     {
-      "ConfigId": "DB_Log", //ID
-      //"ConnectionString": "server=localhost;Database=test;Uid=root;Pwd=111111;AllowLoadLocalInfile=true;", //连接字符串
-      //"DbType": "MySql", //数据库类型
-      "ConnectionString": "Data Source=./DB/Log.db", //连接字符串
-      "DbType": "Sqlite", //数据库类型
-      "LanguageType": "Chinese", //中文提示
-      "IsAutoCloseConnection": true, //是否自动释放
-      "InitDatabase": true, //是否初始化数据库,适用于codefirst
-      "InitTable": true, //是否初始化表,适用于codefirst
-      "InitSeedData": true, //是否初始化种子数据
-      "IsUpdateSeedData": false, //是否更新种子数据
-      "IsShowSql": false //是否控制台显示Sql语句
+      "ConfigId": "DB_Log",
+      "ConnectionString": "Server=DESKTOP-2ALRK02\\MSSQ;Database=ThingsGateway_Log;User Id=sa;Password=123456;TrustServerCertificate=True;",
+      "DbType": "SqlServer",
+      "LanguageType": "Chinese",
+      "IsAutoCloseConnection": true,
+      "InitDatabase": true,
+      "InitTable": true,
+      "InitSeedData": true,
+      "IsUpdateSeedData": false,
+      "IsShowSql": false
     },
     {
-      "ConfigId": "DB_TokenCache", //ID
-      //"ConnectionString": "server=localhost;Database=test;Uid=root;Pwd=111111;AllowLoadLocalInfile=true;", //连接字符串
-      //"DbType": "MySql", //数据库类型
-      "ConnectionString": "Data Source=./DB/TokenCache.db", //连接字符串
-      "DbType": "Sqlite", //数据库类型
-      "LanguageType": "Chinese", //中文提示
-      "IsAutoCloseConnection": true, //是否自动释放
-      "InitDatabase": true, //是否初始化数据库,适用于codefirst
-      "InitTable": true, //是否初始化表,适用于codefirst
-      "InitSeedData": true, //是否初始化种子数据
-      "IsUpdateSeedData": false, //是否更新种子数据
-      "IsShowSql": false //是否控制台显示Sql语句
+      "ConfigId": "DB_TokenCache",
+      "ConnectionString": "Server=DESKTOP-2ALRK02\\MSSQ;Database=ThingsGateway_TokenCache;User Id=sa;Password=123456;TrustServerCertificate=True;",
+      "DbType": "SqlServer",
+      "LanguageType": "Chinese",
+      "IsAutoCloseConnection": true,
+      "InitDatabase": true,
+      "InitTable": true,
+      "InitSeedData": true,
+      "IsUpdateSeedData": false,
+      "IsShowSql": false
     },
     {
-      "ConfigId": "DB_HardwareInfo", //ID
-      //"ConnectionString": "server=localhost;Database=test;Uid=root;Pwd=111111;AllowLoadLocalInfile=true;", //连接字符串
-      //"DbType": "MySql", //数据库类型
-      "ConnectionString": "Data Source=./DB/HardwareInfo.db", //连接字符串
-      "DbType": "Sqlite", //数据库类型
-      "LanguageType": "Chinese", //中文提示
-      "IsAutoCloseConnection": true, //是否自动释放
-      "InitDatabase": true, //是否初始化数据库,适用于codefirst
-      "InitTable": true, //是否初始化表,适用于codefirst
-      "InitSeedData": true, //是否初始化种子数据
-      "IsUpdateSeedData": false, //是否更新种子数据
-      "IsShowSql": false //是否控制台显示Sql语句
+      "ConfigId": "DB_HardwareInfo",
+      "ConnectionString": "Server=DESKTOP-2ALRK02\\MSSQ;Database=ThingsGateway_HardwareInfo;User Id=sa;Password=123456;TrustServerCertificate=True;",
+      "DbType": "SqlServer",
+      "LanguageType": "Chinese",
+      "IsAutoCloseConnection": true,
+      "InitDatabase": true,
+      "InitTable": true,
+      "InitSeedData": true,
+      "IsUpdateSeedData": false,
+      "IsShowSql": false
     },
     {
-      "ConfigId": "DB_Custom", //ID
-      //"ConnectionString": "server=localhost;Database=test;Uid=root;Pwd=111111;AllowLoadLocalInfile=true;", //连接字符串
-      //"DbType": "MySql", //数据库类型
-      "ConnectionString": "Data Source=./DB/ThingsGateway.db", //连接字符串
-      "DbType": "Sqlite", //数据库类型
-      "LanguageType": "Chinese", //中文提示
-      "IsAutoCloseConnection": true, //是否自动释放
-      "InitDatabase": true, //是否初始化数据库,适用于codefirst
-      "InitTable": true, //是否初始化表,适用于codefirst
-      "InitSeedData": true, //是否初始化种子数据
-      "IsUpdateSeedData": false, //是否更新种子数据
-      "IsShowSql": false //是否控制台显示Sql语句
+      "ConfigId": "DB_Custom",
+      "ConnectionString": "Server=DESKTOP-2ALRK02\\MSSQ;Database=ThingsGateway_Custom;User Id=sa;Password=123456;TrustServerCertificate=True;",
+      "DbType": "SqlServer",
+      "LanguageType": "Chinese",
+      "IsAutoCloseConnection": true,
+      "InitDatabase": true,
+      "InitTable": true,
+      "InitSeedData": true,
+      "IsUpdateSeedData": false,
+      "IsShowSql": false
     }
-
   ]
 }

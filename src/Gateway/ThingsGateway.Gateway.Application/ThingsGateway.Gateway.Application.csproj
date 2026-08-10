@@ -1,9 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<Import Project="..\..\Version.props" />
 	<Import Project="..\..\PackNuget.props" />
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;$(OtherTargetFrameworks);</TargetFrameworks>
+		<NoWarn>$(NoWarn);Rpc0004</NoWarn>
+  <TargetFrameworks>net8.0;$(OtherTargetFrameworks);</TargetFrameworks>
 		
 	</PropertyGroup>
 	<ItemGroup>
@@ -48,7 +49,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Admin\ThingsGateway.Admin.Application\ThingsGateway.Admin.Application.csproj" />
-		<ProjectReference Include="..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
+		<ProjectReference Include="..\..\..\..\Industrial.Security\src\Industrial.Security.Abstractions\Industrial.Security.Abstractions.csproj" />
 		<ProjectReference Include="..\..\Foundation\ThingsGateway.CSScript\ThingsGateway.CSScript.csproj" />
 		<ProjectReference Include="..\..\Foundation\ThingsGateway.Foundation\ThingsGateway.Foundation.csproj" />
 		<ProjectReference Include="..\ThingsGateway.Blazor.Diagrams.Core\ThingsGateway.Blazor.Diagrams.Core.csproj" />

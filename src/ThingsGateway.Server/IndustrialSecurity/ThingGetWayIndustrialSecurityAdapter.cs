@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Industrial.Security.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using SqlSugar;
 using ThingsGateway.Admin.Application;
 using ThingsGateway.DB;
 
@@ -240,15 +239,19 @@ public sealed class ThingGetWayLocalPermissionProvider(
 }
 
 /// <summary>Shadow mapping for centralized IAM identities; it never stores a password.</summary>
-public sealed class ThingGetWayShadowUserResolver(ISqlSugarClient db) : IShadowUserResolver
+public sealed class ThingGetWayShadowUserResolver : IShadowUserResolver
 {
     private const string SystemCode = IndustrialSystemCodes.ThingsGateway;
 
     public Task<ShadowUserSnapshot?> ResolveAsync(string iamUserId, CancellationToken cancellationToken = default)
-        => Task.FromResult(db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId) is { } row ? ToSnapshot(row) : null);
+    {
+        using var db = DbContext.GetDB<ThingGetWayShadowUserEntity>();
+        return Task.FromResult(db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId) is { } row ? ToSnapshot(row) : null);
+    }
 
     public Task<ShadowUserSnapshot?> EnsureAsync(string iamUserId, string? userName, string? displayName, CancellationToken cancellationToken = default)
     {
+        using var db = DbContext.GetDB<ThingGetWayShadowUserEntity>();
         var row = db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId);
         if (row is null)
         {
@@ -259,14 +262,14 @@ public sealed class ThingGetWayShadowUserResolver(ISqlSugarClient db) : IShadowU
                 UserName = userName,
                 DisplayName = displayName
             };
-            db.Insertable(row).ExecuteCommand();
+            db.InsertableT(row).ExecuteCommand();
         }
         else
         {
             row.UserName = userName;
             row.DisplayName = displayName;
             row.UpdatedAt = DateTime.UtcNow;
-            db.Updateable(row).ExecuteCommand();
+            db.UpdateableT(row).ExecuteCommand();
         }
 
         return Task.FromResult<ShadowUserSnapshot?>(ToSnapshot(row));

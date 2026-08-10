@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ThingsGateway.Admin.Application;
+using ThingsGateway.DB;
 
 namespace ThingsGateway.Server.IndustrialSecurity;
 

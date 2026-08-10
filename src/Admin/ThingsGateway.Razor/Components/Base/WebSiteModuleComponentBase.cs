@@ -17,6 +17,6 @@ public abstract partial class WebSiteModuleComponentBase : BootstrapModuleCompon
     protected override void OnLoadJSModule()
     {
         base.OnLoadJSModule();
-        ModulePath = $".{WebsiteConst.DefaultResourceUrl}{ModulePath}";
+        ModulePath = $"./{WebsiteConst.DefaultResourceUrl}{ModulePath}";
     }
 }

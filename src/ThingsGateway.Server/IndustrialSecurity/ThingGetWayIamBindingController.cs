@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SqlSugar;
 using ThingsGateway.Admin.Application;
+using ThingsGateway.DB;
 
 namespace ThingsGateway.Server.IndustrialSecurity;
 
@@ -15,12 +15,10 @@ namespace ThingsGateway.Server.IndustrialSecurity;
 [Authorize]
 public sealed class ThingGetWayIamBindingController : ControllerBase
 {
-    private readonly ISqlSugarClient _db;
     private readonly ISysUserService _users;
 
-    public ThingGetWayIamBindingController(ISqlSugarClient db, ISysUserService users)
+    public ThingGetWayIamBindingController(ISysUserService users)
     {
-        _db = db;
         _users = users;
     }
 
@@ -29,8 +27,9 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
     {
         if (!IsLocalSuperAdmin()) return Forbid();
 
-        var rows = _db.Queryable<ThingGetWayShadowUserEntity>()
-            .OrderBy(x => x.UpdatedAt, OrderByType.Desc)
+        using var db = DbContext.GetDB<ThingGetWayShadowUserEntity>();
+        var rows = db.Queryable<ThingGetWayShadowUserEntity>()
+            .OrderBy(x => x.UpdatedAt, ThingsGateway.SqlSugar.OrderByType.Desc)
             .ToList()
             .Select(ToResponse);
         return Ok(rows);
@@ -51,12 +50,13 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
 
         var iamUserId = request.IamUserId.Trim();
         var localId = localUserId.ToString();
-        var conflictingLocal = _db.Queryable<ThingGetWayShadowUserEntity>()
+        using var db = DbContext.GetDB<ThingGetWayShadowUserEntity>();
+        var conflictingLocal = db.Queryable<ThingGetWayShadowUserEntity>()
             .First(x => x.LocalUserId == localId && x.IamUserId != iamUserId);
         if (conflictingLocal is not null)
             return Conflict(new { error = "This local user is already bound to another IAM user." });
 
-        var row = _db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId);
+        var row = db.Queryable<ThingGetWayShadowUserEntity>().First(x => x.IamUserId == iamUserId);
         if (row is null)
         {
             row = new ThingGetWayShadowUserEntity
@@ -69,7 +69,7 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            _db.Insertable(row).ExecuteCommand();
+            db.InsertableT(row).ExecuteCommand();
         }
         else
         {
@@ -78,7 +78,7 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
             row.DisplayName = request.DisplayName ?? row.DisplayName;
             row.Status = "Active";
             row.UpdatedAt = DateTime.UtcNow;
-            _db.Updateable(row).ExecuteCommand();
+            db.UpdateableT(row).ExecuteCommand();
         }
 
         return Ok(ToResponse(row));
@@ -88,7 +88,8 @@ public sealed class ThingGetWayIamBindingController : ControllerBase
     public IActionResult Unbind(string iamUserId)
     {
         if (!IsLocalSuperAdmin()) return Forbid();
-        var affected = _db.Deleteable<ThingGetWayShadowUserEntity>()
+        using var db = DbContext.GetDB<ThingGetWayShadowUserEntity>();
+        var affected = db.Deleteable<ThingGetWayShadowUserEntity>()
             .Where(x => x.IamUserId == iamUserId)
             .ExecuteCommand();
         return affected > 0 ? NoContent() : NotFound();

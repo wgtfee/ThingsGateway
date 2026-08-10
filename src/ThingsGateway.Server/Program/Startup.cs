@@ -42,6 +42,7 @@ public class Startup : AppStartup
         services.AddScoped<IPermissionCodeMapper, ThingGetWayPermissionCodeMapper>();
         services.AddScoped<IUserPermissionProvider, ThingGetWayLocalPermissionProvider>();
         services.AddScoped<IPermissionProvider, ThingGetWayLocalPermissionProvider>();
+        services.AddHostedService<ThingGatewayPermissionManifestHostedService>();
         services.AddScoped<IShadowUserResolver, ThingGetWayShadowUserResolver>();
 
         // 增加中文编码支持网页源码显示汉字

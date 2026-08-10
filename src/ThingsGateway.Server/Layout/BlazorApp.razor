@@ -3,6 +3,7 @@
 @using Microsoft.Extensions.Localization
 @using ThingsGateway.Razor
 @inject IHostEnvironment Env
+@inject IConfiguration Configuration
 @namespace ThingsGateway.Server
 <!DOCTYPE html>
 <html lang="en" data-bs-theme='light'>
@@ -18,7 +19,7 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="favicon.png">
-    <base href="/" />
+    <base href="@BaseHref" />
     <title>ThingsGateway</title>
 
     <link rel="stylesheet" href=@(Assets[$"_content/BootstrapBlazor.FontAwesome/css/font-awesome.min.css"]) />
@@ -57,3 +58,17 @@
 </body>
 
 </html>
+
+@code {
+    private string BaseHref
+    {
+        get
+        {
+            if (!Configuration.GetValue<bool>("IndustrialIamWeb:Enabled")) return "/";
+            var path = Configuration["IndustrialIamWeb:ExternalBasePath"]?.Trim();
+            if (string.IsNullOrWhiteSpace(path)) return "/";
+            if (!path.StartsWith('/')) path = "/" + path;
+            return path.TrimEnd('/') + "/";
+        }
+    }
+}
